@@ -807,19 +807,3 @@ if __name__ == "__main__":
     print("恢复正确:", decoded == test_text)
 
 ```
-
-案例2 Python代码片段处理 (DeepSeek Coder重点)
-
-DeepSeek Coder模型的关键在于其对代码的高效编码，分词器需要保证运算符和关键字不被随意拆开。
-```python
-code_snippet = "def calculate_sum(a, b):\n    return a + b"
-
-# 编码
-encoded_ids = tokenizer.encode(code_snippet, add_special_tokens=False)
-# 解码回Token字符串
-tokens = tokenizer.convert_ids_to_tokens(encoded_ids)
-
-print(f"代码片段:\n{code_snippet}")
-print(f"编码: {tokens}")
-
-```
