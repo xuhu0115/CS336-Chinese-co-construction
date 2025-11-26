@@ -252,15 +252,394 @@
 5. 将词表和merges表进行版本管理例如语义化的版本号与变更日志，并在模型训练与推理管道中显式固定使用的分词器版本，防止不同阶段使用不一致的分词策略导致性能不可复现。
 6. 最后在生产部署时还需要考虑序列长度上限、实时编码延迟以及内存占用等工程问题，并在客户端或服务端实现相同的分词器逻辑以保持输入处理的一致性。
 
-
-
 ### 2常用的分词器
+在NLP的发展历程中，分词策略经历了几次重要的演变。我们主要关注四种最典型的范式：字符、字节、词级、BPE分词器，以及结合课程[lecture1](https://stanford-cs336.github.io/spring2025-lectures/?trace=var/traces/lecture_01.json)各个分词器伪代码转化为python代码实践。
 
 #### 2.1 字符分词器
 
+#### 原理介绍
+
+这是最直观、最简单的分词方式，它将文本拆解为最小的字符单位如英语中的字母 a, b, c、中文里的单字 中, 国。
+
+  - **优点：**
+      - **词表极小：** 英语只需包含26个字母+符号；中文只需包含常用汉字（约几千个）。
+      - **无OOV问题：** 任何生僻词都是由基础字符组成的，不会出现“未知词”。
+  - **缺点：**
+      - **序列过长：** 一句话变成字符后，长度会增加数倍，大大消耗LLM宝贵的上下文窗口，从而加大LLM的transformer计算现存消耗。
+      - **语义稀疏：** 单个字符（如t）通常不具备独立的语义，模型需要更深的网络层数来组合出意义。
+
+   实现示例：
+   ```python
+   # 简易字符分词器实现
+   text = "Hello，World!"
+   
+   # 1.构建词表(去重并排序)
+   vocab = sorted(list(set(text)))
+   print(f"词表: {vocab}") 
+   
+   # 2.创建映射 (字符->ID)
+   char_to_id = {char: i for i, char in enumerate(vocab)}
+   id_to_char = {i: char for i, char in enumerate(vocab)}
+   
+   # 3.编码(Encode)
+   encoded = [char_to_id[c] for c in text]
+   print(f"原文: '{text}' -> 编码后: {encoded}")
+   
+   # 4.解码(Decode)
+   decoded = "".join([id_to_char[i] for i in encoded])
+   print(f"解码后: '{decoded}'")
+   ```
+
+   
+输入
+> Hello，World!
+
+输出
+> 词表: ['!', 'H', 'W', 'd', 'e', 'l', 'o', 'r', '，']
+> 
+> 原文: 'Hello，World!' -> 编码后: [1, 4, 5, 5, 6, 8, 2, 6, 7, 5, 3, 0]
+> 
+> 解码后: 'Hello，World!'
+
+
 #### 2.2 字节分词器
+
+#### 原理介绍
+
+计算机底层存储文本本质上都是**字节**，在UTF-8编码中，英文通常占1个字节，汉字通常占3个字节。字节分词器直接对二进制字节进行操作。
+
+  - **核心逻辑：** 不再维护“字符”的词表，而是维护一个大小为256的基础词表（0x00到0xFF）。
+  - **应用：** 现代LLM（如GPT-4, Llama）通常不单独使用纯字节分词，而是将字节作为BPE的基础单位*即BBPE，这样可以彻底解决跨语言和特殊符号（如emoji 🌍等）的编码问题。
+
+   ```python
+   # Byte-level Tokenizer实现
+   class ByteTokenizer:
+       def __init__(self):
+           # vocab就是0~255的256个值
+           self.vocab_size = 256
+   
+       def encode(self, text: str):
+           # 将字符串编码为UTF-8字节序列 转为int列表
+           return list(text.encode("utf-8"))
+   
+       def decode(self, indices):
+           # 将int列表→bytes→UTF-8 字符串
+           return bytes(indices).decode("utf-8")
+   
+   
+   # 计算压缩率
+   def get_compression_ratio(text: str, indices):
+       input_byte_len = len(text.encode("utf-8"))  # 原始字节序列长度
+       token_len = len(indices)                   # token数量
+       return input_byte_len / token_len if token_len > 0 else 1
+   
+   # 测试
+   if __name__ == "__main__":
+   
+       print("以下测试单字节与多字节 UTF-8 字符：")
+       assert bytes("a", encoding="utf-8") == b"a"
+       assert bytes("🌍", encoding="utf-8") == b"\xf0\x9f\x8c\x8d"
+       print("测试通过：UTF-8单字节与多字节验证完毕\n")
+   
+       tokenizer = ByteTokenizer()
+       string = "Hello, 🌍! 你好!"
+       print("原始字符串：", string)
+       indices = tokenizer.encode(string)
+       print("编码后的byte token序列：", indices)
+   
+       reconstructed_string = tokenizer.decode(indices)
+       print("解码结果：", reconstructed_string)
+   
+       assert string == reconstructed_string
+       print("\nRound-trip测试通过")
+   
+       vocabulary_size = tokenizer.vocab_size
+       print("\n词表大小:", vocabulary_size)
+   
+       compression_ratio = get_compression_ratio(string, indices)
+       print("压缩率compression_ratio:", compression_ratio)
+   
+       assert compression_ratio == 1
+       print("压缩率测试通过（byte tokenizer无压缩）。")
+   ```
+
+输入
+> Hello, 🌍! 你好!
+
+输出
+> 原始字符串： Hello, 🌍! 你好!
+> 
+>编码后的byte token序列： [72, 101, 108, 108, 111, 44, 32, 240, 159, 140, 141, 33, 32, 228, 189, 160, 229, 165, 189, 33]
+> 
+>解码结果： Hello, 🌍! 你好!
+
+值得注意的是**字节级分词器的压缩比恒等于 1**，原因在于：
+
+- 输入文本中单个字符首先被编码为UTF-8字节序列；
+- 字节级分词器将每一个UTF-8字节（0~255）直接作为一个token；
+- 因此`token数量 = UTF-8字节数`。
+
+所以
+
+$$
+compression_{ratio}
+= \frac{\text{UTF-8 字节长度}}{\text{token 数量}}
+= \frac{N}{N}
+= 1
+$$
+
+也就是说，字节级分词器完全不具备压缩能力：每个字节对应一个token，不会产生更长或更短的词片段。
 
 #### 2.3 词级分词器
 
+#### 原理介绍
+
+在深度学习早期（如RNN时代）这是最主流的方法。它基于空格（英文）或分词算法（中文）将文本切分为具备独立语义的“词”。
+
+  - **优点：** Token保留了完整的语义信息（"apple" 直接对应一个Token ID）。
+  - **缺点：**
+      - **词表爆炸：** 英语中 `look, looks, looked, looking` 会被视为4个完全不同的ID，导致词表巨大几十万甚至上百万。
+      - **OOV 问题严重：** 遇到没见过的词如人名、新造词等，只能标记为 `<UNK>` ，导致信息丢，从而影响LLM的表现能力。
+
+   实现示例：
+   ```python
+   import regex
+   
+   # deepseek tokenizer中使用的经典正则表达式（简化版）
+   TOKENIZER_REGEX =  r"\p{L}+|\p{N}+|[^\p{L}\p{N}\s]+|\s+"
+   
+   # 压缩率计算
+   def get_compression_ratio(text: str, segments):
+       byte_len = len(text.encode("utf-8"))
+       token_count = len(segments)
+       return byte_len / token_count if token_count > 0 else 1
+   
+   
+   # Word-level Tokenizer实现
+   class WordTokenizer:
+       def __init__(self, pattern=r"\w+|."):
+           """
+           pattern: 正则表达式（默认基础版：把连续字母数字合成一个词）
+           """
+           self.pattern = pattern
+           self.word2id = {}
+           self.id2word = {}
+   
+       def build_vocab(self, texts):
+           """
+           根据训练文本列表建立词表
+           """
+           vocab = set()
+           for text in texts:
+               segments = regex.findall(self.pattern, text)
+               vocab.update(segments)
+   
+           vocab = sorted(vocab)
+           self.word2id = {w: i for i, w in enumerate(vocab)}
+           self.id2word = {i: w for w, i in self.word2id.items()}
+   
+       def encode(self, text):
+           """
+           文本 → 字符串片段 → token id列表
+           未登录词 UNK = -1
+           """
+           segments = regex.findall(self.pattern, text)
+           return [self.word2id.get(seg, -1) for seg in segments], segments
+   
+       def decode(self, ids):
+           """
+           token ID → 原始片段 → 拼成字符串
+           """
+           return "".join(self.id2word.get(i, "<UNK>") for i in ids)
+   
+   # 测试
+   if __name__ == "__main__":
+   
+       string = "It's so supercalifragilisticexpialidocious!👋👋"
+       print("原始字符串：", string)
+   
+       # 使用基础正则分词（基于空格和标点切分）
+       basic_segments = regex.findall(r"\w+|.", string)
+       print("基础正则分词结果：")
+       print(basic_segments)
+   
+       # 使用deepseek风格正则
+       segments = regex.findall(TOKENIZER_REGEX, string)
+       print(f"deepseek风格分词结果：{segments}")
+   
+       # 构建词表
+       tokenizer = WordTokenizer(pattern=TOKENIZER_REGEX)
+       tokenizer.build_vocab([string])
+   
+       print("词表大小：", len(tokenizer.word2id))
+   
+       # 编码
+       ids, segs = tokenizer.encode(string)
+       print(f"编码token IDs：{ids}")
+   
+       # 字节序列
+       byte_tokens = [b for b in string.encode("utf-8")]
+       print(f"UTF-8字节序列：{byte_tokens}")
+   
+       print(f"编码segments：{segs}")
+   
+       # 解码
+       decoded = tokenizer.decode(ids)
+       print("解码结果：", decoded)
+   
+       # 压缩率
+       ratio = get_compression_ratio(string, segs)
+       print("压缩率：", ratio)
+   ```
+输入   
+>It's so supercalifragilisticexpialidocious!👋👋
+
+输出
+>基础正则分词结果：
+>
+>['It', "'", 's', ' ', 'so', ' ', 'supercalifragilisticexpialidocious', '!', '👋', '👋']
+>
+>deepseek风格分词结果：['It', "'", 's', ' ', 'so', ' ', 'supercalifragilisticexpialidocious', '!👋👋']
+>
+>词表大小： 7
+>
+>编码token IDs：[3, 2, 4, 0, 5, 0, 6, 1]
+>
+>压缩率： 6.375
+
 #### 2.4 BPE分词器
+
+#### 原理介绍
+
+这是目前LLM（GPT, BERT, Llama等）最主流的分词算法，BPE是一种试图在<ins>字符级（粒度太细）</ins>和<ins>词级（粒度太粗）</ins>之间找到平衡。
+
+  - **核心思想：** 统计语料中相邻字符对出现的频率，迭代地将**最频繁出现的字符对**合并成一个新的Token。
+
+  - **过程：**
+    1. 初始化：将单词拆成字符序列。
+    2. 统计：计算所有相邻字符对的频率（如'e' 和's'经常一起出现）。
+    3. 合并：将频率最高的对（'e', 's'）合并为新 Token ('es')。
+    4. 循环：重复上述步骤，直到达到预设的词表大小。
+
+   实现实例：简易版BPE训练过程
+   
+   ```python
+   import regex
+   from collections import Counter
+   
+   # DeepSeek风格正则
+   DEEPSEEK_REGEX = r"\p{L}+|\p{N}+|[^\p{L}\p{N}\s]+|\s+"
+   
+   # 使用grapheme cluster保持emoji不被拆分
+   def split_graphemes(token):
+       return tuple(regex.findall(r'\X', token))
+   
+   # BPE训练函数
+   def train_bpe(texts, num_merges=50):
+       """
+       texts: 文本列表（用于训练BPE）
+       num_merges: BPE 迭代合并的次数
+       """
+       # 1.构建初始vocab（字符级+</w>结束符）
+       vocab = Counter()
+       for text in texts:
+           tokens = regex.findall(DEEPSEEK_REGEX, text)
+           for token in tokens:
+               chars = split_graphemes(token) + ('</w>',)
+               vocab[chars] += 1
+       merges = []
+       for _ in range(num_merges):
+           # 统计相邻pair出现次数
+           pairs = Counter()
+           for word, freq in vocab.items():
+               for i in range(len(word)-1):
+                   pairs[(word[i], word[i+1])] += freq
+           if not pairs:
+               break
+   
+           # 找到最常见pair
+           best_pair = max(pairs, key=pairs.get)
+           merges.append(best_pair)
+   
+           # 合并所有vocab中的该pair
+           new_vocab = {}
+           for word, freq in vocab.items():
+               w = []
+               i = 0
+               while i < len(word):
+                   if i < len(word)-1 and (word[i], word[i+1]) == best_pair:
+                       w.append(word[i]+word[i+1])
+                       i += 2
+                   else:
+                       w.append(word[i])
+                       i += 1
+               new_vocab[tuple(w)] = freq
+           vocab = new_vocab
+       return merges, vocab
+   
+   # BPE Tokenizer类
+   class BPETokenizer:
+       def __init__(self, merges):
+           self.merges = merges
+   
+       def encode_word(self, token):
+           # 初始分成字符+</w>
+           word = list(split_graphemes(token)) + ['</w>']
+           # 按merge顺序依次合并
+           for pair in self.merges:
+               i = 0
+               new_word = []
+               while i < len(word):
+                   if i < len(word)-1 and (word[i], word[i+1]) == pair:
+                       new_word.append(word[i]+word[i+1])
+                       i += 2
+                   else:
+                       new_word.append(word[i])
+                       i += 1
+               word = new_word
+           return word
+   
+       def encode(self, text):
+           tokens = regex.findall(DEEPSEEK_REGEX, text)
+           bpe_tokens = []
+           for t in tokens:
+               bpe_tokens.extend(self.encode_word(t))
+           return bpe_tokens
+   
+       def decode(self, tokens):
+           # 拼接tokens并去掉结尾</w>
+           text = ''.join(tokens).replace('</w>', '')
+           return text
+   
+   # 测试
+   if __name__ == "__main__":
+       train_texts = ["这只猫🐈很可爱", "the quick brown fox jumps over the lazy 🐕‍🦺"]
+       merges, vocab = train_bpe(train_texts, num_merges=20)
+       print("BPE合并:", merges)
+       tokenizer = BPETokenizer(merges)
+       test_text = "敏捷的棕色狐狸🦊"
+       encoded = tokenizer.encode(test_text)
+       print("编码:", encoded)
+       decoded = tokenizer.decode(encoded)
+       print("解码:", decoded)
+   ```
+
+输入
+>test_text = "敏捷的棕色狐狸🦊"
+
+输出
+>BPE合并: [(' ', '</w>'), ('t', 'h'), ('th', 'e'), ('the', '</w>'), ('这', '只'), ('这只', '猫'), ('这只猫', '</w>'), ('🐈', '</w>'), ('很', '可'), ('很可', '爱'), ('很可爱', '</w>'), ('q', 'u'), ('qu', 'i'), ('qui', 'c'), ('quic', 'k'), ('quick', '</w>'), ('b', 'r'), ('br', 'o'), ('bro', 'w'), ('brow', 'n')]
+>
+>编码: ['敏', '捷', '的', '棕', '色', '狐', '狸', '</w>', '🦊', '</w>']
+
+在BPE编码阶段，如果没有`</w>`算法可能把`the`错误地拆成'th'、'e'或在后续合并时与其他token错误合并。加上`</w>`后，`the`会被表示为['t', 'h', 'e', '</w>']，BPE就知道这是一个完整单词的结尾不会跨单词错误合并，那么解码阶段去掉`</w>`就能把token拼回`the`，保证原文恢复正确。
+
+>所以`</w>`的核心作用是保证单词完整性，并让编码可逆。
+#### 四种分词器对比表
+
+| 分词器类型 | 粒度 | 词表大小 | 未登录词 (OOV) | 序列长度 | 代表模型 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **字符级** | 细 | 小 (100-5k) | 无 | 非常长 | Char-RNN |
+| **词级** | 粗 | 极大 (>100k) | 严重 | 短 | Word2Vec, GloVe |
+| **BPE** | **中 (自适应)** | **适中 (30k-100k)** | **极少** | **适中** | **GPT-4, Llama 3** |
 
