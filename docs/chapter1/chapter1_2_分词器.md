@@ -856,7 +856,7 @@ class DeepSeekV3Tokenizer:
                     new_tokens.append(tokens[i])
                     i+=1
             tokens = new_tokens
-        # 不在词表的拆回单 byte 或 <unk>
+        # 不在词表的拆回单byte或<unk>
         out = []
         for t in tokens:
             if t in self.token2id:
@@ -891,7 +891,7 @@ class DeepSeekV3Tokenizer:
             if print_chunks: print(f"[Special] <eos> -> {self.token2id[self.eos_token]}")
         return ids
 
-    def decode(self, ids: Iterable[int]) -> str:
+    def decode(self, ids: Iterable[int]):
         byte_seq = bytearray()
         for i in ids:
             tok = self.id2token.get(i, self.unk_token)
