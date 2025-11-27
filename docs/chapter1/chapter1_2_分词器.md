@@ -5,10 +5,6 @@
 在我们把海量数据喂给大模型之前，必须先经过一道关键工序——分词。分词器常被视为LLM的一部分，但它其实拥有独立的训练生命周期。我们需要利用正则表达式对原始文本进行预处理，并统计构建出一套高效的**词元——数字**离散序列转化映射表（vocab），这个映射过程决定了模型眼中的世界是由字、词还是更碎的片段组成的，直接影响后续模型对语义的理解效率。也正因如此，[分词器](https://tiktokenizer.vercel.app/?model=deepseek-ai%2FDeepSeek-R1)虽独立训练却与LLM保持着“强耦合”的关系。
 
 >训练一个用于现代大型语言模型的分词器可以拆成四步：准备语料 → 初始化基础单元 → 统计并迭代合并 → 输出产物并用于编码、解码。
->
-<p align="center">
-<img width="963" height="525" alt="image" src="https://github.com/user-attachments/assets/dc75d356-7fbf-466b-a301-dbc08b1ae49d" />
-</p>
 
 #### 第一步 准备语料
 
@@ -473,7 +469,7 @@ $$
 
 在深度学习早期（如RNN时代）这是最主流的方法。它基于空格（英文）或分词算法（中文）将文本切分为具备独立语义的“词”。
 
-  - **优点：** Token保留了完整的语义信息（"apple" 直接对应一个Token ID）。
+  - **优点：** Token保留了完整的语义信息比如"apple" 直接对应一个Token ID...。
   - **缺点：**
       - **词表爆炸：** 英语中 `look, looks, looked, looking` 会被视为4个完全不同的ID，导致词表巨大几十万甚至上百万。
       - **OOV 问题严重：** 遇到没见过的词如人名、新造词等，只能标记为 `<UNK>` ，导致信息丢，从而影响LLM的表现能力。
@@ -761,32 +757,47 @@ print(f"IDs:{encoded_ids}")
 
 ```python
 """
-DeepSeek-V3 Tokenizer实现（字节级BPE+DeepSeek风格正则预分词）
+DeepSeek-V3 Tokenizer 实现示例
+（核心包含：字节级BPE+DeepSeek风格正则预分词）
 """
 import regex as re
 from collections import Counter
 from typing import List, Tuple, Dict, Iterable
 import json
+import base64
 
-# 配置
-DEEPSEEK_REGEX = r"\p{L}+|\p{N}+|[^\p{L}\p{N}\s]+|\s+"  # DeepSeek风格正则
 
-# 预分词与字节操作
+# 配置：DeepSeek 正则模式（预分词）
+# \p{L}+   连续字母（中文、英文、所有 Unicode 字母）
+# \p{N}+   连续数字
+# [^\p{L}\p{N}\s]+  非字母数字空白的字符（如标点、emoji）
+# \s+      连续空白符
+DEEPSEEK_REGEX = r"\p{L}+|\p{N}+|[^\p{L}\p{N}\s]+|\s+"
+
+
+# 基础函数：预分词与字节处理
 def pretokenize(text:str):
-    """DeepSeek风格预分词"""
+    """按DeepSeek风格的正则进行预分词"""
     return re.findall(DEEPSEEK_REGEX, text)
 
 def bytes2tokens(b:bytes):
-    """UTF-8 bytes → latin1 token列表"""
+    """
+    将UTF-8字节序列转为latin1可表示的token列表。
+    每个字节0–255都能被latin1 接映射到字符。
+    """
     return [bytes([x]).decode('latin1') for x in b]
 
 def tokens2bytes(tokens):
-    """latin1 token 列表 → bytes"""
+    """将 latin1 token 列表重新转回原始 bytes"""
     return b''.join([t.encode('latin1') for t in tokens])
+
 
 # BPE训练相关
 def build_corpus(texts):
-    """构建byte token语料"""
+    """
+    构建byte-level语料。
+    步骤：预分词 → UTF-8 编码 → 分解为单字节 → 作为初始 token 序列。
+    """
     corpus = []
     for text in texts:
         for chunk in pretokenize(text):
@@ -794,7 +805,7 @@ def build_corpus(texts):
     return corpus
 
 def pair_freq(corpus: List[List[str]]):
-    """统计连续token pair出现频率"""
+    """统计所有token序列中相邻token pair的出现频率"""
     pairs = Counter()
     for word in corpus:
         for i in range(len(word)-1):
@@ -802,13 +813,13 @@ def pair_freq(corpus: List[List[str]]):
     return pairs
 
 def merge_pair(word: List[str], pair: Tuple[str,str]):
-    """将指定pair合并为单token"""
+    """将指定的token pair合并成一个token"""
     a, b = pair
     merged = []
     i = 0
     while i < len(word):
         if i < len(word)-1 and word[i]==a and word[i+1]==b:
-            merged.append(a+b)
+            merged.append(a+b)   # 合并为一个新 token
             i += 2
         else:
             merged.append(word[i])
@@ -816,45 +827,77 @@ def merge_pair(word: List[str], pair: Tuple[str,str]):
     return merged
 
 def train_bpe(texts: Iterable[str], vocab_size: int=5000, num_merges: int=None) -> Tuple[List[Tuple[str,str]], List[str]]:
-    """训练字节级BPE"""
+    """
+    训练字节级BPE
+    """
     corpus = build_corpus(texts)
     base_tokens = [bytes([i]).decode('latin1') for i in range(256)]
     merges: List[Tuple[str,str]] = []
     merged_set = set()
     cur_vocab_size = 256
+
+    # 若未指定合并次数，则由target vocab来决定
     merge_steps = num_merges or (vocab_size - 256)
 
     for _ in range(merge_steps):
         pfreq = pair_freq(corpus)
         if not pfreq:
             break
+
+        # 找到出现频率最高的 pair
         best_pair, _ = pfreq.most_common(1)[0]
+
         if cur_vocab_size + 1 > vocab_size:
             break
+
         merges.append(best_pair)
+
+        # 对整个语料进行合并替换
         corpus = [merge_pair(word, best_pair) for word in corpus]
+
+        # 将新token记入词表
         merged_set.add(best_pair[0]+best_pair[1])
         cur_vocab_size += 1
 
+    # 追加特殊token
     special_tokens = ["<pad>", "<bos>", "<eos>", "<unk>"]
+
+    # vocab = 特殊token+ 256 byte token +BPE合并的新token
     vocab_tokens = special_tokens + base_tokens + sorted(merged_set)
+
     return merges, vocab_tokens
+
+
 
 # Tokenizer类
 class DeepSeekV3Tokenizer:
     def __init__(self, merges: List[Tuple[str,str]], vocab_tokens: List[str]):
         self.merges = merges
         self.vocab_tokens = vocab_tokens
+
+        # token ↔ id映射
         self.token2id = {tok:i for i, tok in enumerate(vocab_tokens)}
         self.id2token = {i:tok for tok,i in self.token2id.items()}
+
+        # merges pair → 排序index
         self.ranks = {pair:i for i,pair in enumerate(merges)}
+
+        # 特殊token
         self.pad_token = "<pad>"
         self.bos_token = "<bos>"
         self.eos_token = "<eos>"
         self.unk_token = "<unk>"
 
     def encode_chunk(self, chunk: str) -> List[str]:
+        """
+        对一个预分词做BPE编码：
+        - 转字节token
+        - 逐步应用merges
+        - 处理OOV：未知token拆回字节或标记为 <unk>
+        """
         tokens = bytes2tokens(chunk.encode('utf-8'))
+
+        # 应用 PE 并规则
         for pair in self.merges:
             new_tokens = []
             i = 0
@@ -867,17 +910,26 @@ class DeepSeekV3Tokenizer:
                     new_tokens.append(tokens[i])
                     i+=1
             tokens = new_tokens
-        # 不在词表的拆回单byte或<unk>
+
+        # OOV token拆回字节
         out = []
         for t in tokens:
             if t in self.token2id:
                 out.append(t)
             else:
+                # 拆分成字节token；如果字节token也不在词表 → <unk>
                 out.extend([ch if ch in self.token2id else self.unk_token for ch in t])
         return out
 
     def encode(self, text: str, add_bos=False, add_eos=False, print_chunks=False):
+        """
+        编码完整文本：
+        - 先预分词
+        - 再逐chunk编码
+        - 可选打印中间过程
+        """
         ids = []
+
         if add_bos:
             ids.append(self.token2id[self.bos_token])
             if print_chunks: print(f"[Special] <bos> -> {self.token2id[self.bos_token]}")
@@ -890,9 +942,12 @@ class DeepSeekV3Tokenizer:
                 readable = []
                 for t in toks:
                     try:
+                        # 尝试恢复utf-8
                         r = tokens2bytes([t]).decode('utf-8', errors='ignore')
                         readable.append(r if r else t.encode('latin1').hex())
-                    except: readable.append(t.encode('latin1').hex())
+                    except:
+                        readable.append(t.encode('latin1').hex())
+
                 print(f"[Chunk] \"{chunk}\" -> {readable} -> IDs: {chunk_ids}")
 
             ids.extend(chunk_ids)
@@ -903,37 +958,64 @@ class DeepSeekV3Tokenizer:
         return ids
 
     def decode(self, ids: Iterable[int]):
+        """
+        将ID序列还原为utf-8文本：
+        """
         byte_seq = bytearray()
         for i in ids:
             tok = self.id2token.get(i, self.unk_token)
-            if tok in {self.pad_token, self.bos_token, self.eos_token}: continue
+            if tok in {self.pad_token, self.bos_token, self.eos_token}:
+                continue
             byte_seq.extend(tokens2bytes(list(tok)))
         return byte_seq.decode('utf-8', errors='replace')
 
     def save(self, vocab_path: str, merges_path: str):
+
+        # 保存vocab（token2id）
         with open(vocab_path, 'w', encoding='utf-8') as f:
             json.dump(self.token2id, f, ensure_ascii=False, indent=2)
+
+        # 保存 merges：每个token用base64
+        merges_b64 = []
+        for a, b in self.merges:
+            a_bytes = a.encode('latin1')
+            b_bytes = b.encode('latin1')
+            merges_b64.append((
+                base64.b64encode(a_bytes).decode('ascii'),
+                base64.b64encode(b_bytes).decode('ascii')
+            ))
+
         with open(merges_path, 'w', encoding='utf-8') as f:
-            for a,b in self.merges:
-                f.write(f"{tokens2bytes([a]).hex()} {tokens2bytes([b]).hex()}\n")
+            json.dump(merges_b64, f, ensure_ascii=False, indent=2)
+
     @classmethod
     def load(cls, vocab_path: str, merges_path: str):
-        with open(vocab_path,'r',encoding='utf-8') as f:
+
+        # 加载vocab
+        with open(vocab_path, 'r', encoding='utf-8') as f:
             token2id = json.load(f)
-        vocab_tokens = [None]*(max(token2id.values())+1)
-        for tok,idx in token2id.items(): vocab_tokens[idx]=tok
+        vocab_tokens = [None] * (max(token2id.values()) + 1)
+        for tok, idx in token2id.items():
+            vocab_tokens[idx] = tok
+
+        # 加载merges（base64 → bytes → latin1）
+        with open(merges_path, 'r', encoding='utf-8') as f:
+            merges_b64 = json.load(f)
+
         merges = []
-        with open(merges_path,'r',encoding='utf-8') as f:
-            for line in f:
-                a_hex,b_hex = line.strip().split()
-                merges.append((bytes.fromhex(a_hex).decode('latin1'), bytes.fromhex(b_hex).decode('latin1')))
+        for a_b64, b_b64 in merges_b64:
+            a = base64.b64decode(a_b64).decode('latin1')
+            b = base64.b64decode(b_b64).decode('latin1')
+            merges.append((a, b))
         return cls(merges, vocab_tokens)
 
-# 训练
+
+# 提供训练函数
 def train_tokenizer(texts, vocab_size=5000, num_merges=None):
     merges, vocab_tokens = train_bpe(texts, vocab_size=vocab_size, num_merges=num_merges)
     return DeepSeekV3Tokenizer(merges, vocab_tokens)
 
+# 示例
 if __name__ == "__main__":
     texts = [
         "Transformer是AI的核心技术。",
@@ -941,7 +1023,7 @@ if __name__ == "__main__":
         "Hello, 世界! 🌍🚀",
     ]
 
-    print("训练Tokenizer(vocab_size=1024)")
+    print("训练 Tokenizer (vocab_size=1024)")
     tokenizer = train_tokenizer(texts, vocab_size=1024)
     print(f"完成训练，词表大小: {len(tokenizer.vocab_tokens)}")
     print("-"*50)
@@ -955,7 +1037,6 @@ if __name__ == "__main__":
     decoded = tokenizer.decode(ids)
     print("解码结果:", decoded)
     print("是否可逆:", decoded == txt)
-
 ```
 输入测试样例
 >注意力机制是AI的核心技术。 🚀 🚀
@@ -963,16 +1044,15 @@ if __name__ == "__main__":
 输出
 >tokens映射id，以及每个划分token对应的编码，并且对于不同位置的空格和emoji🚀对应的编码以及映射ID是相同的。
 
-从以上代码的运行结果可以看出，分词器的token ↔ id映射仅表示token的内容，而不包含该token在句子中的相对位置。BPE或其他基于频率的合并策略是统计驱动的——它们根据token对或子串在语料中的共现频率决定合并，将常见的字节或子串压缩成更长的token。这说明分词器本身并不理解句子的抽象语义，它更像一个执行统计的模块，通过数学或概率规律重排和压缩字符序列，为上层模型（如LLM）提供可学习的离散输入单元。语义理解依赖下游模型在上下文中学习得到，并结合位置编码信息，而非由分词器直接“理解”。
+从以上代码的运行结果可以看出，分词器的token ↔ id映射仅表示token的内容，而不包含该token在句子中的相对位置。BPE或其他基于频率的合并策略是统计驱动的——它们根据token对或子串在语料中的共现频率决定合并，将常见的字节或子串压缩成更长的token。这说明分词器本身并不理解句子的抽象语义，它更像一个执行统计的模块，通过数学或概率规律重排和压缩字符序列，为上层模型*如LLM*提供可学习的离散输入单元。语义理解依赖下游模型在上下文中学习得到，并结合位置编码信息，而非由分词器直接“理解”。
 
 ### 4思考
-1）根据现有研究表明，既然视觉特征能提升LLM但也有局限，那能不能找到视觉特征与离散 token 的“平衡点”比如让模型像MoE一样，在不同任务之间自动选择最佳的表示方式，从而适应更多场景？
+1）有研究表明，视觉特征能够增强LLM的理解能力，但并非适用于所有语言任务。那么是否可以在视觉表征与离散 token 之间寻求一种动态“平衡点”：同时为模型提供两类表征方式，并借鉴MoE的思想设计轻量级动态路由，使模型能够在不同任务或文本片段中自动选择或融合最合适的*词——数字*映射表形式，从而显著提升跨场景的适配能力？
 
 > 文本token的离散性限制了表达能力，视觉token可提供高密度的连续压缩表征但并不适用于所有语言场景；因此探索一种MoE风格的多表征机制，使模型能按任务动态选择文本、视觉或混合表征，以获得更丰富且具场景适配性的表示或许也值得思考。
 
-2）自适应分词器，能否设计一个在分词器训练阶段也能学习、改进token划分的机制比如通过微分子词模块、元学习或RL...，以便从少量对话样本中自动学习更合适的token划分，从而降低下游任务数据需求并提升鲁棒性？
+2）能否设计一种“自适应分词器”，在训练阶段和下游任务中动态学习与优化 token 划分策略？例如，借助微分子词模块、元学习或强化学习等方法，使分词器能够从少量对话或任务样本中自动发现最合适的 token 划分，从而降低下游任务对数据的依赖，同时提升模型的鲁棒性和泛化能力？
 
-> 
-
+> 这种方式有点像半监督学习，分词器自己在“学习怎么学习”，这样即使只看到少量对话样本，它也能找到更合适的token划分方式，让模型理解语言更高效，也更不容易被新词或少量数据难住。
 
 
