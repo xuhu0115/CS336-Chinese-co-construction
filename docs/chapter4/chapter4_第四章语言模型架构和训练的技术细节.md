@@ -772,7 +772,7 @@ $$
 
 有人会说：这虽然减小了KV cache 的显存占用量，但是明显计算量增加了，每次要计算注意力就要解压缩，计算完后又要压缩。确实如此，但是世界上没有十全十美的东西，我们要权衡利弊，显然，显存比时间要金贵的多，而且增加的计算量在预期之内，与可以节省的显存相比，显然显存更加重要。
 
-![alt text](image-29.png)
+![alt text](images/image-29.png)
 
 MLA 和 MHA 在困难基准上的比较。DeepSeek-V2（采用MLA）的性能优于 MHA，但所需的 KV 缓存量显著更小。MLA虽然未被广泛使用，仅仅在deepseek系列中使用，但是deepseek出色的模型性能已经向我们证明了这项技术的能力。
 
@@ -782,7 +782,7 @@ MLA 和 MHA 在困难基准上的比较。DeepSeek-V2（采用MLA）的性能优
 
 DeepSeek Sparse Attention（DSA）是 DeepSeek-V3.2-Exp 引入的细粒度动态稀疏注意力机制，也是头一个用deepseek命名的技术。通过智能筛选关键信息将长上下文推理成本降低 60-70%，同时几乎不损失模型质量。
 
-![alt text](image-30.png)
+![alt text](images/image-30.png)
 
 由deepseek发布的论文（获得ACL 2025最佳论文）来看，NSA与全注意力相比，得分略胜，在速度上则是完胜。对于 64k 长度序列的处理，NSA 在全注意力机制的所有阶段（解码、前向传播和后向传播）中均实现了显著的计算加速
 
