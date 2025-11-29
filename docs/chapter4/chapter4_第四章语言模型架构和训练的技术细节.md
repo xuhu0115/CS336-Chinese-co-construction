@@ -177,9 +177,9 @@ $W^O$ 形状：`[d_model, d_model]`，输出保持 `d_model` 维度。
 点积 $Q \cdot K = \sum_{i=1}^{d_k} q_i k_i$
 点积的**方差**为：
 
-  $$
-  \text{Var}(Q \cdot K) = \sum_{i=1}^{d_k} \text{Var}(q_i k_i) = d_k \cdot \text{Var}(q_i k_i)
-  $$
+$$
+\text{Var}(Q \cdot K) = \sum_{i=1}^{d_k} \text{Var}(q_i k_i) = d_k \cdot \text{Var}(q_i k_i)
+$$
 
 除 $\sqrt{d_k}$ 后将分布重新变成标准化，作用就有：
 1. **保持方差稳定**：无论 $d_k$ 多大，输入 $softmax$ 的值都在合理范围
@@ -187,7 +187,6 @@ $W^O$ 形状：`[d_model, d_model]`，输出保持 `d_model` 维度。
 3. **稳定训练**：使模型对维度选择不敏感，原始论文使用 $d_k=64$ （单头）依然稳定
 
 ---
-
 
 ### 3. 层归一化（LayerNorm）与残差链接
 
@@ -204,23 +203,29 @@ $$
 类似的，层归一化就是对同一层（单个样本）进行的归一化，和普通的归一化没有什么本质区别。
 
 1. **计算均值**（对同一层的所有神经元）：
+
    $$
    \mu = \frac{1}{d} \sum_{i=1}^{d} v_i
    $$
 
 2. **计算标准差**：
-   $$
-   \sigma = \sqrt{\frac{1}{d} \sum_{i=1}^{d} (v_i - \mu)^2 + \varepsilon}
-   $$
+
+$$
+\sigma = \sqrt{\frac{1}{d} \sum_{i=1}^{d} (v_i - \mu)^2 + \varepsilon}
+$$
+
    其中$\varepsilon$是极小常数（$10^{-6}$），防止除零错误
 3. **归一化**：
-   $$
-   \hat{v} = \frac{v - \mu}{\sigma}
-   $$
+
+$$
+\hat{v} = \frac{v - \mu}{\sigma}
+$$
+
 4. **可学习参数调整**：
-   $$
-   \text{Output} = \gamma \cdot \hat{v} + \beta
-   $$
+
+$$
+\text{Output} = \gamma \cdot \hat{v} + \beta
+$$
 
 **可学习参数** | $\gamma$（缩放）和 $\beta$（平移），维度与输入相同。让模型自己学习缩放和平移。
 
