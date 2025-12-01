@@ -4,7 +4,7 @@
 
 transformer模型的起源可以追溯到2017年，当时由Google研究团队在论文[《Attention Is All You Need》](https://arxiv.org/abs/1706.03762)中首次提出。该模型的核心创新是引入了**自注意力机制**（Self-Attention Mechanism），摒弃了传统的循环神经网络（RNN）和卷积神经网络（CNN）结构。自注意力机制允许模型在处理序列数据时并行计算，从而大幅提高了计算效率，并解决了长距离依赖问题。
 
-![alt text](images/image.png)
+![4-1-transformer](images/4-1-transformer.png)
 
 上述图中是Transformer 的 Block 结构，右边是**解码器Block**和**编码器Block，解码器和编码器堆叠*N就是transformer结构**
 
@@ -21,15 +21,15 @@ $$
 
 **变量说明**：
 
-- `pos`：token在序列中的位置（0, 1, 2, ..., N-1）
+- $pos$：token在序列中的位置（0, 1, 2, ..., N-1）
 
-- `i`：维度索引（0到d_model/2-1）
+- $i$：维度索引（0到d_model/2-1）
 
-- `d_model`：模型嵌入维度（论文中512）
+- $d_{model}$：模型嵌入维度（论文中512）
 
-- `10000`：基础频率（可配置）
+- $10000$：基础频率（可配置）
 
-带入公式计算出位置编码后直接和词嵌入相加`X = Token + PE(pos)`
+带入公式计算出位置编码后直接和词嵌入相加 $X = Token + PE(pos)$
 
 ---
 
@@ -45,7 +45,7 @@ $$
 
 ### 4.1.2多头注意力机制
 
-![alt text](images/image-1.png)
+![4-1-MultiHeadAttention](images/4-1-MultiHeadAttention.png)
 注意力机制仿照人类注意力的运行原理，人类在看一张图片时不会将注意力均匀的放在照片的每个角落，而是有选择的观察图片中亮眼和突出的部分。注意力机制也是这样，会关注输入中重要的部分，表现为权重大。注意力机制本质是加权求和。
 
 --- 
@@ -72,11 +72,11 @@ $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right)
 
 在《Attention Is All You Need》中：
 
-- **d_model** = 512（模型维度）
+- $d_{model} = 512$（模型维度）
 
-- **h** = 8（头数）
+- $h = 8$（头数）
 
-- **d_k = d_v** = 64（每头维度，512/8=64）
+- $d_k = d_v = 64$（每头维度，512/8=64）
 
 - **缩放因子**：$\sqrt d_k = 8$
 
@@ -98,22 +98,22 @@ $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right)
 
 **3. 切分为多头**
 
-将 `d_model` 拆分为 `h` 个头，每头维度 `d_k = d_model / h`：
+将 $d_{model}$ 拆分为 $h$ 个头，每头维度 $d_k=d_{model}/h$ ：
 
 ```Plain Text
 Q = Q.reshape(batch_size, seq_len, h, d_k)  # [bs, seq_len, h, d_k]
 Q = Q.transpose(1, 2)                       # [bs, h, seq_len, d_k]
 ```
 
-现在形状：`[batch_size, h, seq_len, d_k]`（同理处理K, V）
+现在形状：[ $batchSize$, $h$, $seqLen$, $d_k$ ]（同理处理 $K$, $V$ ）
 
-对每个头 `i`：
+对每个头 $H_i$：
 
 $\text{Head}_i = \text{Attention}(Q_i, K_i, V_i) = \text{softmax}\left(\frac{Q_i K_i^T}{\sqrt{d_k}}\right)V_i$
 
-- $Q_i K_i^T$ 形状：`[batch_size, h, seq_len, seq_len]`
+- $Q_i K_i^T$ 形状：[ $batchSize$, $h$, $seqLen$, $seqLen$ ]
 
-- 输出 $Head_i$ 形状：`[batch_size, h, seq_len, d_k]`
+- 输出 $Head_i$ 形状：[ $batchSize$, $h$,  $seqLen$, $d_k$ ]
 
 拼接所有头
 
@@ -121,7 +121,7 @@ $$
 \text{MultiHead}(Q,K,V) = \text{Concat}(\text{Head}_1, ..., \text{Head}_h)
 $$
 
-拼接后形状：`[batch_size, seq_len, d_model]`（`h × d_k = d_model`）
+拼接后形状：[$batchSize$, $seqLen$, $d_{model}$ ]（ $h × d_k = d_{model}$ ）
 
 最终线性变换
 
@@ -129,7 +129,7 @@ $$
 \text{Output} = \text{MultiHead}(Q,K,V)W^O
 $$
 
-$W^O$ 形状：`[d_model, d_model]`，输出保持 `d_model` 维度。
+$W^O$ 形状：[ $d_{model}$, $d_{model}$ ]，输出保持 $d_{model}$ 维度。
 
 ---
 
@@ -137,13 +137,13 @@ $W^O$ 形状：`[d_model, d_model]`，输出保持 `d_model` 维度。
 
 在《Attention Is All You Need》中：
 
-- **d_model** = 512（模型维度）
+- $d_{model} = 512$（模型维度）
 
-- **h** = 8（头数）
+- $h = 8$（头数）
 
-- **d_k = d_v** = 64（每头维度，512/8=64）
+- $d_k = d_v = 64$（每头维度，512/8=64）
 
-- **缩放因子**：`√d_k = 8`
+- **缩放因子**：$\sqrt d_k = 8$
 
 ---
 
@@ -232,8 +232,8 @@ $$
 **2. 什么是残差**
 
 残差（Residual） 在深度学习中特指**残差连接**（Residual Connection），也称为**跳跃连接**（Skip Connection），是连接神经网络层与层之间的"捷径"，让信息可以直接绕过某些层传递。
-
-![alt text](images/image-2.png)
+4-1-Add&Norm
+![4-1-Add&Norm](images/4-1-Add&Norm.png)
 
 残差公式：
 
@@ -279,7 +279,7 @@ $Sublayer(x)$ 是注意力之前的子层输出:
 
 ### 4.1.4 前馈网络(Feed Forward)与激活函数
 
-![alt text](images/image-3.png)
+![4-1-FeedForward](images/4-1-FeedForward.png)
 
 原始Transformer论文《Attention Is All You Need》中使用的激活函数是 **ReLU（Rectified Linear Unit）**，具体应用于**位置前馈网络（Position-wise Feed-Forward Networks）**。
 
@@ -336,7 +336,7 @@ $$
 ## 4.2 Transformer的现代变体及代表模型
 
 我们介绍了Transformer的标准架构，这几年涌现了不少优质论文：CommandA、2OLMo、SmolLM、Phi-4，接着又看到Gemma3、Qwen2.5、InternLM......越来越多的模型甚至挤满了整个屏幕。去年共发布了约19个稠密模型，其中多数都涉及细微的架构调整。
-![alt text](images/image-4.png)
+![4-2-models](images/4-2-models.png)
 
 我们会发现仅仅学习一个原始论文的标准架构会越来越不足以面对市场上越来越快的创新，这是了一份从2017年原始Transformer到2025年最新模型的架构对比表格。
 
@@ -353,7 +353,7 @@ $$
 
 ### 4.2.1 归一化
 
-![alt text](images/image-5.png)
+![4-2-Per&PostNorm](images/4-2-Per&PostNorm.png)
 
 **1. 位置上，Post-LN（原始论文设计，后归一化）**
 
@@ -378,7 +378,7 @@ $$
 - 适用于**极深网络**（100+层）
 - 已成为GPT-3、PaLM等大模型的默认配置
 
-![alt text](images/image-6.png)
+![4-2-post&perNormData](images/4-2-post&perNormData.png)
 
 采用预归一化配合其他稳定化技巧后，即使不使用**预热机制**，系统表现也能媲美甚至优于需要精细预热方案的后归一化LayerNorm。左图展示了机器翻译场景下的对比结果，右图则显示在各类任务（特别是使用后归一化训练的BERT）上的同样趋势。关于预归一化的优势存在多种解释：有研究认为它能避免层间梯度衰减，保持梯度规模恒定；而未使用预热的后归一化会导致梯度爆炸（橙色曲线）。这些论点都很有说服力。但更符合现代认知的解释可能是：预归一化本身就是更稳定的训练架构。因此，Salazar和Nguyen的一些早期研究发现了所有这些损失峰值——如果使用预归一化（图中蓝色部分）进行训练，你会看到更多的损失峰值，训练过程会变得不太稳定。可以看到这里的梯度范数出现尖峰，且通常高于预归一化的情况。如今，预归一化和其他LayerNorm技巧被广泛用作训练大型神经网络时的稳定性辅助手段。
 
@@ -407,7 +407,7 @@ $$
 
 Narang等人2020年的消融实验清晰表明：基准Transformer每秒处理3.5步，而RMS归一化版本达到3.68步，且最终损失值还低于基准模型。
 
-![alt text](images/image-7.png)
+![4-2-RMSnorm_exp](images/4-2-RMSnorm_exp.png)
 
 RMSNorm运行时的收益已经能在论文中观察到。
 
@@ -437,11 +437,11 @@ $$
 
 FFN去除偏置项b的理由几乎和RMSNorm一致，去除偏置项的想法广泛适用，许多模型在大多数地方根本没有偏置项。
 
-### 4.3.3 激活函数
+### 4.2.3 激活函数
 
 从transformer或者深度学习这个概念被发明起，大家都热衷于改进其中的激活函数，有一大堆激活函数——ReLU、GeLU、Swish、ELU、GeGLU。有不同类型的MLP——GeGLU、ReGLU、SeLU、SwiGLU和LiGLU。这些是什么？人们使用它干什么，这又有多重要？
 
-![alt text](images/image-8.png)
+![4-2-ReLU&GeLU](images/4-2-ReLU&GeLU.png)
 
 **1. ReLU函数**
 
@@ -461,7 +461,7 @@ GeLU函数由于精确计算误差函数开销大，实践中使用多项式近�
 
 GeLU启发了门控线性单元（GLU）家族。
 基本上2023年之后的所有模型都采用了门控线性单元。
-![alt text](images/image-9.png)
+![4-3-GLU](images/4-3-GLU.png)
 
 ---
 
@@ -519,21 +519,21 @@ SwiGLU基本上是当今大多数模型采用的结构。比如LLaMA系列、PaL
 
 **答**：
 
-![alt text](images/image-10.png)
+![4-3-NoamShazeer](images/4-3-NoamShazeer.png)
 
 NoamShazeer的原始论文中评估了所有GLU变体。这些数据虽然相对较早，但可以看到在CoLA和SST-2任务上的表现。能明显观察到GLU变体持续表现**更优**：GLU分别达到84.20、84.12、84.36、84.67。值得一提的是这是2020年的研究，他们甚至提供了标准差以便评估结果显著性——事实上这些结果确实具有统计显著性。这是很好的实证依据。2020年Narang等人的论文也值得关注，这篇优质研究在T5类模型中测试了各种架构变体。再次可以看到门控线性单元变体始终获得更低的损失值，加粗行对应的正是GLU变体。这种优势模式一直延续至今。关于门控和激活函数，不同模型存在诸多变体，但门控线性单元已基本成为主流选择。
 
-![alt text](images/image-11.png)
+![4-3-Narang_exp](images/4-3-Narang_exp.png)
 
 关于门控和激活函数，不同模型存在诸多变体，但门控线性单元已基本成为主流选择，我们认为这有其充分理由。当然需要明确：优秀模型不一定必须使用GLU。不能因为它的轻微优势和普遍使用就认为不可或缺。确实存在许多高性能模型未使用GLU的案例。例如GPT-3；更新的Nemotron340B则使用了平方ReLU——这是之前未见过的设计。而Falcon211b使用的是ReLU激活函数。这两者都是相对高性能的模型。因此可以看出这并非必要选择。现有证据确实表明SwiGLU和GeGLU能带来持续性能提升。
 
 ---
 
-### 4.3.4 位置编码
+### 4.2.4 位置编码
 
 要聊清楚位置编码的发展是一个非常费力的事情，我们会着重讲解RoPE这一个几乎所有先进模型都在使用的位置编码，其他位置编码只做简单讲解。否则我们要聊个三天三夜都没完。
 
-![alt text](images/image-12.png)
+![4-2-posEmbedding](images/4-2-posEmbedding.png)
 
 **1. 正弦嵌入（Sine Embeddings）**
 
@@ -688,7 +688,7 @@ RoPE的实际数学原理是：若考虑旋转操作，**只需与不同的正�
 
 ---
 
-### 4.3.5 注意力机制的变体
+### 4.2.5 注意力机制的变体
 
 说到注意力机制就不得不提到Q、K、V三板斧。多头注意力机制通过将输入分割为多个头，然后对每个头进行自注意力，最后再进行合并。实现多头注意力机制。
 
@@ -697,16 +697,15 @@ RoPE的实际数学原理是：若考虑旋转操作，**只需与不同的正�
 
 **1. KV cache**
 
-![alt text](images/image-22.png)
+![4-2-KV_cache](images/4-2-KV_cache.png)
 
 我们生成文本时，记住我们生成一个token，然后Transformer读取该token并处理它，接着我们可以得到下一个token的分布，然后我们自回归地一次一个token地执行操作。通过这样做，我们无法并行化生成过程，我们需要为每个新token逐步进行。我们会存储历史计算的K和V的值，这样我们在生成新的token的时候就不用重复计算K和V的值，这称为KV cache。
 
 ---
 
-
 **2. MQA多查询注意力（Multi Query Attention, MQA）**
 
-![alt text](images/image-23.png)
+![4-2-MQA](images/4-2-MQA.png)
 
 传统 **多头注意力机制（HMA）** 会为每个头分配一个Q、K、V矩阵，对于每个头都有独属于自己的Q、K、V矩阵。**多查询注意力（Multi Query Attention, MQA）** 则对其进行了优化。他的主要的改进点是**共享K、V矩阵**，即多个头共享同一个K、V矩，Q矩阵则**不共享**。这也是它名字**多查询注意力**的由来。这样减小了存储KV矩阵显存的压力。
 - **在 MQA 中**，所有的注意力头共享相同的键（K）和值（V）矩阵。每个注意力头只保留自己的查询（Q）矩阵。这意味着键和值的计算和存储只需要进行一次，而不是为每个头重复计算。
@@ -726,13 +725,13 @@ GQA 的**核心思想**是将 **查询（Query）** 分成多个组，每个组�
 
 **4. 稀疏 / 滑动窗口注意力**
 
-![alt text](images/image-24.png)
+![4-2-sparse&structuredAttention](images/4-2-sparse&structuredAttention.png)
 
 回顾2019年，OpenAI发表了一篇精彩论文，探讨如何构建更长注意力的模型。他们提出的解决方案是**设计稀疏注意力模式**，不是关注整个序列，而是聚焦于每个分块的局部窗口，再辅以对角线等注意力模式来跨区块传递信息。通过这种稀疏或结构化注意力，可以在表达能力和运行效率之间取得平衡。
 
 GPT-3最初发布时就采用了这类技巧来实现更大的注意力窗口。滑动窗口注意力是该思想的另一个变体，在每个层级仅关注当前位置的邻近区域。这种方式能有效控制处理长文本所需的总资源量，此时有效感受野等于局部范围乘以层数。虽然这些是较早的思路，但现代实现方式有了新的发展。
 
-![alt text](images/image-25.png)
+![4-2-slidingWindowsAttention](images/4-2-slidingWindowsAttention.png)
 
 最近LLaMA4、Gemma和CohereCommandA等论文提出了一种巧妙的方案：构建包含**四个Transformer块**的组合，最底层的块使用完全自注意力机制但不含任何位置嵌入（既无RoPE也无其他位置编码），完全不具备位置感知能力，却实现了**完整的自注意力功能**。而且这种情况每四个区块才发生一次。然后它上面的三个区块使用带有RoPE的滑动窗口注意力机制。这实际上是一个非常巧妙的技巧，既能控制系统层面的因素，因为完全注意力机制只是偶尔发生；同时也能处理长度外推的问题，因为RoPE只处理局部上下文窗口。对于真正长距离的依赖关系，则完全不需要位置嵌入，因此可以**实现非常激进的外推**。
 
@@ -742,13 +741,13 @@ GPT-3最初发布时就采用了这类技巧来实现更大的注意力窗口。
 
 MLA（Multi-head Latent Attention，多头潜在注意力）是DeepSeek引入的创新注意力架构，通过**低秩联合压缩技术**显著降低推理时的KV缓存需求，在保持性能的同时大幅提升效率。
 
-![alt text](images/image-27.png)
+![4-2-MLA](images/4-2-MLA.png)
 
 将KV缓存减少93%，DeepSeek-V2 架构示意图如上。MLA通过显著减少生成所需的 KV 缓存，确保高效推理。
 
 传统 Transformer 模型通常采用多头注意力机制（MHA），但在生成过程中，其庞大的键值（KV）缓存会成为限制推理效率的瓶颈。为了减少 KV 缓存，有人提出了多查询注意力机制（MQA）和分组查询注意力机制（GQA）。它们需要更小的 KV 缓存量，但其性能与始终比不上MHA。
 
-![alt text](images/image-28.png)
+![4-2-compareAttentions](images/4-2-compareAttentions.png)
 
 传统Transformer采用多头注意力（MHA），每个注意力头需独立缓存Key和Value向量。对于层数为L、隐藏维度为d、头数为h的模型，KV缓存复杂度为 O(L·h·d)，成为长序列推理的主要瓶颈。
 
@@ -784,7 +783,7 @@ $$
 
 有人会说：这虽然减小了KV cache 的显存占用量，但是明显计算量增加了，每次要计算注意力就要解压缩，计算完后又要压缩。确实如此，但是世界上没有十全十美的东西，我们要权衡利弊，显然，显存比时间要金贵的多，而且增加的计算量在预期之内，与可以节省的显存相比，显然显存更加重要。
 
-![alt text](images/image-29.png)
+![4-3-MLA_exp](images/4-3-MLA_exp.png)
 
 MLA 和 MHA 在困难基准上的比较。DeepSeek-V2（采用MLA）的性能优于 MHA，但所需的 KV 缓存量显著更小。MLA虽然未被广泛使用，仅仅在deepseek系列中使用，但是deepseek出色的模型性能已经向我们证明了这项技术的能力。
 
@@ -794,7 +793,7 @@ MLA 和 MHA 在困难基准上的比较。DeepSeek-V2（采用MLA）的性能优
 
 DeepSeek Sparse Attention（DSA）是 DeepSeek-V3.2-Exp 引入的细粒度动态稀疏注意力机制，也是头一个用deepseek命名的技术。通过智能筛选关键信息将长上下文推理成本降低 60-70%，同时几乎不损失模型质量。
 
-![alt text](images/image-30.png)
+![4-2-DSA_exp](images/4-2-DSA_exp.png)
 
 由deepseek发布的论文（获得ACL 2025最佳论文）来看，NSA与全注意力相比，得分略胜，在速度上则是完胜。对于 64k 长度序列的处理，NSA 在全注意力机制的所有阶段（解码、前向传播和后向传播）中均实现了显著的计算加速
 
@@ -806,7 +805,7 @@ DeepSeek Sparse Attention（DSA）是 DeepSeek-V3.2-Exp 引入的细粒度动态
 
 DSA通过**先筛选后计算**来优化这个场景，扫描历史token，计算重要性分数，只有足够高的得分才进入注意力机制中的计算。核心架构由Lightning Indexer与Top-k选择器双组件构成.
 
-![alt text](images/image-31.png)
+![4-2-DSA](images/4-2-DSA.png)
 
 1. **Lightning Indexer**（闪电索引器）:
 
@@ -851,7 +850,7 @@ $$
 
 观察现有模型会发现，许多都遵循这个经验法则，**(8/3)约等于2.66**.
 
-![alt text](images/image-13.png)
+![4-3-d_ff&d_model](images/4-3-d_ff&d_model.png)
 
 以PaLM为例，Mistral和LLaMA的设定稍大些。虽然它们都是GLU模型，**但并未遵循2.6倍规则**。而LLaMA-1、Qwen、DeepSeek、Yi和T5等模型都大致遵循2.6倍左右的设定
 
@@ -866,7 +865,7 @@ $$
 
 我们应该有个思考：是否有人通过更量化的实验证明这是合理的，在JaredKaplan的缩放定律论文中，虽然大多数人关注的是缩放定律部分，但实际上论文还包含非常有用的超参数研究。你会发现他们正好研究了我提到的$d_{ff}$与$d_{model}$比例，并绘制了随该比例变化时损失值的增长曲线。**图中显示存在一个最佳区间**，比例从1到10左右都有较宽的选择范围，你可以任意选择前馈网络比例而结果都接近最优。
 
-![alt text](images/image-14.png)
+![4-3-FeedFowardRatio](images/4-3-FeedFowardRatio.png)
 
 **从这些超参数研究中我们能学到什么**？大量证据表明：如果不使用GLU激活函数，默认可以选用**4倍乘数**；若使用GLU，则可采用约2.66倍。这些设置**对大多数现代语言模型都效果良好**。不过T5再次证明**不必拘泥于这些规则**，你可以打破常规自由选择——没有哪个超参数是铁律，在其他超参数配置下也能获得合理的语言模型。有趣的是，这个故事有个耐人寻味的后续：T5的改进版T5v1.1采用了更标准的2.5倍GeGLU乘数。这或许暗示原团队重新评估后认为应该回调64倍乘数，选择更常规的配置，最终确实得到了更好的模型。
 
@@ -876,18 +875,17 @@ $$
 
 另一个超参数共识是模型维度与头维度乘以头数量的比例。标准做法是保持每个头的维度固定而增加头数量，当然也可以选择保持单头维度不变来增加注意力部分的参数量——但大多数模型都遵循前一种方案。我们看到GPT-3、T5、LaMDA、PaLM和LLaMA2这些模型，它们的**比例都是1或几乎精确等于1**， $(NumHeads \cdot HeadDim )/ Model dim = 1$。T5是打破这个规则的唯一例外，他们尝试了16的大比例。但除此之外，**其他模型都相当遵循这个共识。**
 
-
-![alt text](images/image-15.png)
+![4-3-NumHeadRatio](images/4-3-NumHeadRatio.png)
 
 Bhojanapalli等人2020年的研究，他们提出如果注意力头数量不断增加，其秩会越来越低。如果每个头的维度非常少，就会开始影响注意力操作的表达能力。但在实践中，我们似乎并没有遇到太多显著的低秩瓶颈问题。大多数采用1:1比例的模型都表现得很好。
 
-![alt text](images/image-16.png)
+![4-3-Parameters](images/4-3-Parameters.png)
 
 ### 4.3.3 模型的宽深比
 
 我们的模型应该是要**深度还是宽度**？要多深和多宽？
 
-![alt text](images/image-17.png)
+![4-3-wide&deep](images/4-3-wide&deep.png)
 
 普遍存在的一个最佳准则是：每层需要**约128个隐藏维度**。这个标准被很多GPT-3和LLaMA变体模型所遵循。
 
@@ -895,7 +893,7 @@ Bhojanapalli等人2020年的研究，他们提出如果注意力头数量不断�
 
 抛开这些限制，我们可以抽象思考：宽深比对模型性能有何影响？Kaplan等人再次提供了很好的可视化展示。这是三个不同规模的数据——5000万、2.74亿和15亿参数。横轴是宽深比，纵轴是损失差异的百分比变化。可以看到在**100左右出现了不同规模下的最小值**。
 
-![alt text](images/image-18.png)
+![4-3-wide&deep_exp](images/4-3-wide&deep_exp.png)
 
 Google的ETay等人有一项非常有趣的研究，探讨了深度与宽度在上游和下游任务中的影响。他们发现：如果仅关注损失值，那么深度并不重要，参数数量才是唯一关键因素。但当下游准确率作为评估指标时，情况就不那么明确了。当时，他们正在研究微调后的SuperGLUE准确率。他们认为在相同计算量（FLOPs）下，更深的模型可能表现更好。这项工作的后续研究并不太多。但从长宽比的角度来看，下游任务的实际表现可能会略有不同。
 
@@ -917,7 +915,7 @@ Google的ETay等人有一项非常有趣的研究，探讨了深度与宽度在�
 
 预训练看似是最不需要正则化的场景——因为**预训练通常只进行一个训练周期**，由于数据量过大甚至无法完整遍历所有数据，**单轮训练**几乎不可能导致过拟合。这似乎构成了不需要正则化的充分理由。但实际情况却比较复杂。早期研究大量使用dropout，权重衰减也被广泛采用。虽然现在很多团队不再详细发布训练超参数，但dropout已逐渐失宠，而权重衰减**仍被持续使用**。
 
-![alt text](images/image-19.png)
+![4-3-dropoutRatio](images/4-3-dropoutRatio.png)
 许多旧模型在预训练期间使用了dropout，较新的模型（除 Qwen 外）仅依赖权重衰减。
 
 这其实相当反常：当使用SGD在海量数据上对巨型神经网络进行单轮训练时，为什么要使用权重衰减？
@@ -926,7 +924,7 @@ Google的ETay等人有一项非常有趣的研究，探讨了深度与宽度在�
 
 实施权重衰减并非为了正则化模型（虽然这原本是设计初衷），而是为了获得**更低的训练损失**。之所以能达到这个效果，是因为在训练末期随着学习率趋近于零时，各种学习动态产生了特殊作用。这是个非常有趣且复杂，甚至在某种程度上令人困扰的语言模型特性。但现在你们应该明白，为什么很多技术报告都会注明“我们使用了权重衰减”。
 
-![alt text](images/image-20.png)
+![4-3-Andriushhenko_exp](images/4-3-Andriushhenko_exp.png)
 
 现在让我们看看可以实施的不同类型的权重衰减。在使用**权重衰减**时，模型在较高学习率下训练效果不佳。而当你降低学习率后，损失值会迅速下降。观察余弦学习率衰减时可以发现，高权重衰减的模型初始进展缓慢，但随着学习率降低（即冷却过程），它们会快速优化。这说明优化器与权重衰减之间存在着复杂的相互作用，在训练末期**会产生某种隐性加速**，最终得到更优模型。
 
@@ -936,7 +934,7 @@ Google的ETay等人有一项非常有趣的研究，探讨了深度与宽度在�
 
 过去一年的核心架构变化不大，但许多发布版本都突出强调了称之为**稳定性技巧**的内容。这些技巧旨在以更稳定的方式训练模型。随着模型规模不断扩大，训练时间持续延长，这类稳定性问题愈发凸显。
 
-![alt text](images/image-21.png)
+![4-4-OLMo2_exp](images/4-4-OLMo2_exp.png)
 
 我们从OLMo2论文中可以看到这个案例，该论文在LLM训练稳定性方面提供了出色的学术成果。他们首先展示了这张图表：观察这里的蓝色曲线，这个梯度图的L2范数令人触目惊心。虽然损失曲线看似正常，但会不时出现异常尖峰。打开梯度范数图，会发现布满尖峰的恐怖图像，范数值完全失控。
 
@@ -1013,6 +1011,6 @@ $logits = QK^T / \sqrt(d_k)$
 
 大模型的架构每时每刻都在发生变化，我们设置的许多超参数都是依据经验或者大量的实验实现来证明它确实是有用的，依据最新的研究成功和前人的经验，我们可以迅速改造好一个模型，就像搭积木一样简单。
 
-![alt text](images/image-26.png)
+![4--models](images/4-5-models.png)
 
 Transformer 的许多方面（架构、超参数）在大型语言模型中是相似的。
