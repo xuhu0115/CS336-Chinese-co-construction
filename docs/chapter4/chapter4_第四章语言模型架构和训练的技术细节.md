@@ -232,7 +232,7 @@ $$
 **2. 什么是残差**
 
 残差（Residual） 在深度学习中特指**残差连接**（Residual Connection），也称为**跳跃连接**（Skip Connection），是连接神经网络层与层之间的"捷径"，让信息可以直接绕过某些层传递。
-4-1-Add&Norm
+
 ![4-1-Add&Norm](images/4-1-Add&Norm.png)
 
 残差公式：
