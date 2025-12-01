@@ -121,7 +121,7 @@ $$
 \text{MultiHead}(Q,K,V) = \text{Concat}(\text{Head}_1, ..., \text{Head}_h)
 $$
 
-拼接后形状：[$batchSize$, $seqLen$, $d_{model}$ ]（ $h × d_k = d_{model}$ ）
+拼接后形状：[ $batchSize$, $seqLen$, $d_{model}$ ]（ $h × d_k = d_{model}$ ）
 
 最终线性变换
 
