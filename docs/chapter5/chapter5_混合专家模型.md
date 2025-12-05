@@ -60,50 +60,77 @@ class TC_MoE(nn.Module):
         super().__init__()
         # 设置专家数量
         self.num_experts = num_experts
-        # 设置每个token选用的专家数量（top-k）
+        # 设置每个token选用的专家数量
         self.k = k
-        # 路由器：将输入映射到专家分数
+        # 路由器：将输入映射到专家特征空间
         self.router = nn.Linear(dim, num_experts)
-        # 创建专家模块列表
+        # 创建专家模块列表（每个专家是独立的）
         self.experts = nn.ModuleList([Expert(dim) for _ in range(num_experts)])
     def forward(self, x, tokens=None, verbose=False):
         # 获取批量大小和特征维度
         B, D = x.shape
-        # 计算每个专家对每个token的分数，使用softmax归一化
-        gate_scores = F.softmax(self.router(x), dim=-1)  # [B, E]
+        # 计算每个专家对每个token的分数，使用softmax得到概率分布
+        gate_scores = F.softmax(self.router(x), dim=-1)  # gate_scores: [B, E]
+
         # token选取分数最高的k个专家及其分数
-        # 返回的两个张量是token选中的Top-K专家信息，从左到右形状分别为：[batch,TopE_scores]、[batch,TopE_index]
+        # topk_scores: [B, k]（对应被选中的专家概率值）
+        # topk_idx:    [B, k]（对应被选中的专家索引）
         topk_scores, topk_idx = gate_scores.topk(self.k, dim=-1)
-        # 初始化输出张量
+ 
+        # 初始化输出张量与输入同形状
         out = torch.zeros_like(x)
-        # 遍历每个top-k专家
+
+        # 每个token对应的每一个top-k位置单独处理（同一个token可能被不同专家处理）
         for i in range(self.k):
-            # 获取当前第i个专家ID
+            # B表示处理的token总数
+            # expert_ids表示每个token在第i个Top-K选择的专家编号，形状：[B]
             expert_ids = topk_idx[:, i]
-            # 获取当前第i个专家权重
+            # expert_weight表示第每个token在第i个Top-K选择上专家所占的权重，形状：[B]
             expert_weight = topk_scores[:, i]
-            # 初始化专家输出
+
+            # 用于累加当前第i个选择位置上所有专家的输出
             expert_output = torch.zeros_like(x)
-            # 遍历所有专家模块
+
+            # 遍历所有专家，让对应专家处理被分配给它的token
+            # e_id表示对应Top-K专家处理的token索引值
             for e_id, expert in enumerate(self.experts):
-                # 创建掩码：当编码的所有token中其索引值等于专家需要处理的token索引值时显示1，其余不处理的置为0
+                # 创建掩码当token在第i个选择位置的专家索引等于当前专家e_id时为1，否则为0
+                # mask 形状为 [B, 1]，用于在计算专家网络前把不属于该专家的 token 置 0
                 mask = (expert_ids == e_id).float().unsqueeze(1)
-                # 如果没有token被分配给当前专家，跳过
+
+                # mask.sum() 表示属于该专家的 token 数量；若为 0 表示该专家在本轮没有任务
                 if mask.sum() == 0:
                     continue
-                # 应用专家前馈网络，只处理掩码标记的token
+
+                # 只把属于该专家的token送入该专家的前馈网络（其他token被置 0）
+                # 注意：这里采用x * mask的方式，能保持张量形状一致并保留反向传播路径
                 expert_output += expert(x * mask)
-            # 将专家输出按权重加权后累加到总输出
+
+            # 将第i个选择位置上专家的输出按对应权重加权并累加到最终out
+            # expert_weight.unsqueeze(1)变为[B, 1]以便广播乘到[B, D]
             out += expert_output * expert_weight.unsqueeze(1)
+
+        # out：每个token在Top-K专家上的加权聚合的向量表示
         return out
 ```
+**以上展示的是Top-K TC混合专家的关键板块，运行的代码在[Top-K TC.py](https://github.com/1iyouzhen/CS336-Chinese-co-construction/blob/main/docs/chapter5/Top-K%20TC.py)。**
+
+TC_MoE(dim=32, num_experts=10, k=2)，输入文本：
+>"MoE是很强大的机制！", "专家混合模型非常高效。"
+
+输出：
+>按照字节级切分文本，得到33个token，专家负载统计从0到9号专家处理token总数统计依次为[13, 13, 16, 14, 9, 6, 20, 19, 18, 4]
+
 <div align="center">
 <img width="1000" height="773" alt="1980610e1c138e069cd6fdcdc3b196a3" src="https://github.com/user-attachments/assets/d665c6bd-88be-4b35-9199-71dbfe74b9ba" />
    <p>图5.2 专家选择模式</p>
  </div>  
 
 - `EC`中 $W_g$ ：在打分步骤中，它可以理解为一个 “语义导航器”，将token的隐藏特征映射到每个专家的语义空间，并把这份导航信号提供给所有专家。每个专家会根据这份“导航信息”，主动挑选最符合自己能力范围的Top-K token进行处理。
-**简易MoE的 $Top-k$ 专家选择模式实现：**
+  
+**简易MoE的 $Top-k$ 专家选择模式实现步骤：**
+
+
 ```python
 
 ```
