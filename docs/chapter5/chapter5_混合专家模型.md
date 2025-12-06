@@ -274,7 +274,19 @@ $$
 ```python
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+# 简单字符级 tokenizer
+class CharTokenizer:
+    def __init__(self):
+        self.vocab = {}
+        self.inv_vocab = {}
+    def build_vocab(self, texts):
+        chars = set("".join(texts))
+        self.vocab = {c:i for i,c in enumerate(sorted(chars))}
+        self.inv_vocab = {i:c for c,i in self.vocab.items()}
+    def encode(self, text):
+        return [self.vocab[c] for c in text]
+    def decode(self, ids):
+        return "".join([self.inv_vocab[i] for i in ids])
 
 # Expert FFN
 class Expert(nn.Module):
@@ -291,84 +303,89 @@ class Expert(nn.Module):
 # LSH Router
 class LSHRouter(nn.Module):
     def __init__(self, d_model, num_experts, n_hashes=8):
-        super().__init__()  # 调用父类 nn.Module 的初始化函数，保证模块可以正常注册参数和buffer
-        self.num_experts = num_experts  # 专家数量，后续路由结果会映射到这些专家上
-        self.n_hashes = n_hashes        # 哈希空间大小，每个token会生成n_hashes个投影值来计算哈希
-
-        # 随机向量矩阵，用于LSH投影
-        # 形状: [n_hashes, d_model]，每一行都是一个随机向量
-        # 用 register_buffer 注册为 buffer 而非参数，不参与梯度更新，但会随model.to(device)转移到对应设备
+        super().__init__()
+        self.num_experts = num_experts
+        self.n_hashes = n_hashes
         self.register_buffer(
-            "random_vectors", 
-            torch.randn(n_hashes, d_model)  # 从标准正态分布初始化随机向量
+            "random_vectors",
+            torch.randn(n_hashes, d_model)
         )
-
-
     def forward(self, x):
-        # x: [B, D]
-        projections = x @ self.random_vectors.T  # [B, n_hashes]
-        signs = (projections > 0).long()        # 1/0
-        # 二进制映射为整数hash
-        hashes = signs @ (1 << torch.arange(self.n_hashes))  # [B]
-        # 映射到专家ID
+        projections = x @ self.random_vectors.T
+        signs = (projections > 0).long()
+        hashes = signs @ (1 << torch.arange(self.n_hashes, device=x.device))
         expert_ids = hashes % self.num_experts
         return hashes, expert_ids
 
 # LSH-MoE
-class LSH_MoE(nn.Module):
-    def __init__(self, dim, num_experts, n_hashes=8):
+class LSH_MoE_Text(nn.Module):
+    def __init__(self, dim, num_experts, n_hashes=8, vocab_size=None):
         super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim)  # embdding层
+        self.dim = dim
         self.num_experts = num_experts
         self.router = LSHRouter(dim, num_experts, n_hashes)
         self.experts = nn.ModuleList([Expert(dim) for _ in range(num_experts)])
 
-    def forward(self, x, verbose=True):
+    def forward(self, token_lists, verbose=True):
         """
-        x: [B, D]
+        token_lists: list of LongTensor，每条tensor是一条文本token ID
         """
-        B, D = x.shape
-        # 1. LSH路由选择专家
-        hashes, expert_ids = self.router(x)  # [B], [B]
+        lengths = [t.size(0) for t in token_lists]
+        total_tokens = sum(lengths)
+        x_flat = torch.cat(token_lists, dim=0)  # [total_tokens]
+        x_flat = self.embedding(x_flat)         # [total_tokens, D]
 
-        # 2. 初始化输出
-        out = torch.zeros_like(x)
+        hashes, expert_ids = self.router(x_flat)
+        out_flat = torch.zeros_like(x_flat)
 
-        # 3. 统计专家负载
-        expert_load = torch.zeros(self.num_experts, dtype=torch.long)
-
-        # 4. 遍历专家计算
+        expert_load = torch.zeros(self.num_experts, dtype=torch.long, device=x_flat.device)
         for e_id, expert in enumerate(self.experts):
-            mask = (expert_ids == e_id).float().unsqueeze(1)  # [B,1]
+            mask = (expert_ids == e_id).float().unsqueeze(1)
             n_tokens = int(mask.sum().item())
             expert_load[e_id] = n_tokens
             if n_tokens > 0:
-                expert_out = expert(x * mask)
-                # 输出加权累加
-                out += expert_out * mask
+                out_flat += expert(x_flat * mask) * mask
+
+        # 拆回原句子
+        outputs = []
+        start = 0
+        for l in lengths:
+            outputs.append(out_flat[start:start+l])
+            start += l
         if verbose:
             print("\n========== LSH-MoE Token 哈希映射 ==========")
-            for i in range(B):
-                print(f"Token {i}: Hash={hashes[i].item()} -> Expert {expert_ids[i].item()}")
+            start = 0
+            for idx, l in enumerate(lengths):
+                for j in range(l):
+                    token_idx = start + j
+                    print(f"Sentence {idx}, Char {j}: Hash={hashes[token_idx].item()} -> Expert {expert_ids[token_idx].item()}")
+                start += l
             print("\n========== LSH-MoE 专家负载统计 ==========")
             for e in range(self.num_experts):
                 print(f"Expert {e}: {expert_load[e].item()} tokens")
             print("------------------------------------------------\n")
-        return out
+
+        return outputs
 
 # 测试
 if __name__ == "__main__":
-    B, D, E = 16, 32, 5  # 16token, 32维，5个专家
-    x = torch.randn(B, D)
-    lsh_moe = LSH_MoE(dim=D, num_experts=E, n_hashes=8)
-    out = lsh_moe(x)
-    print("输出shape:", out.shape)
+    sentences = ["你好世界", "今天天气很好"]
+    tokenizer = CharTokenizer()
+    tokenizer.build_vocab(sentences)
+    token_lists = [torch.tensor(tokenizer.encode(s), dtype=torch.long) for s in sentences]
+    dim, num_experts = 16, 5    # 每个tokenembdding维度，专家数量
+    moe_text = LSH_MoE_Text(dim=dim, num_experts=num_experts, vocab_size=len(tokenizer.vocab))
+    outputs = moe_text(token_lists)
+    for i, out in enumerate(outputs):
+        print(f"Sentence {i} 输出shape: {out.shape}")
 
 ```
 输入
->B, D, E = 16, 32, 5
+>dim, num_experts = 16, 5
 
 输出
->LSH-MoE专家负载统计，从0~4号专家处理token数量分别为：[4, 3, 2, 4, 3]
+>每个句子的token哈希映射以及LSH_MoE专家负载统计。
 
 *输出结果会随着embdding层动态变化。*
 
