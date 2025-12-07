@@ -463,7 +463,102 @@ MoE并不是仅用于**Transformer**的技术，而是一种可广泛嵌入各�
 
 ### 5.2.1 MoE与LLM
 在LLM中，MoE通常通过引入一个路由器以及将Transformer中的单个前馈网络板块替换或扩展为由多个独立专家组成的稀疏子网络。每个token在前向与反向传播中仅激活少量专家，使模型能够在不显著增加每次计算量的前提下大幅提升参数容量与表示能力。
-### 5.2.2 推理与部署
+### 5.2.2 简易MoE+LLM实现
+
+**第一步：构建字节级分词器**
+```python
+class ByteTokenizer:
+    def __init__(self):
+        self.vocab_size = 259
+        self.bos = 256 # 序列开始，告诉LLM一个独立的文本片段或输入样本从这里开始。
+        self.eos = 257 # 序列结束，告诉LLM一个文本片段到这里结束。
+        self.pad = 258 # 填充，在模型训练或推理时，通常需要将多条长短不一的文本组成一个批次。
+        # <pad>会被添加到较短序列的末尾使批次中所有序列长度一致，便于高效的矩阵运算。
+```
+这个词汇表的总大小是256+3，由两部分组成：
+ 1. 基础字节编码：数量256个，它们代表了计算机中所有可能的单字节值从0到255。这种方法能够确保任何文本，不论其语言或编码，都能被无损地编码成一串数字Token ID。
+
+ 2. 特殊功能编码：数量3个，这些Token专门用于提供文本结构信息，确保模型能够正确处理和理解文本段落的边界和批处理时的对齐，便于计算。
+
+```python
+def encode(self, text, add_bos=True, add_eos=True):
+    # 把输入文本信息进行utf-8字符集编码，得到字节序列b
+    # 每个字节值0-255对应一个Token ID
+    b = text.encode('utf-8', errors='surrogatepass')
+    ids = list(b)   # 将UTF-8字节序列转换为Token ID列表
+    if add_bos:
+        # 标记文本开头，添加<bos> Token ID
+        ids = [self.bos] + ids 
+    if add_eos:
+        # 标记文本结束，添加<eos> Token ID
+        ids = ids + [self.eos] 
+    return ids # 返回最终处理完成的Token ID序列
+def batch_encode(self, texts, pad_to=None):
+    # pad_to 用于规定批处理中每条 Token ID 序列的目标长度（强制对齐）
+    encs = [self.encode(t) for t in texts] 
+    # 如果未指定pad_to，则使用当前批次中最长序列的长度；否则使用 pad_to 规定的长度
+    maxlen = max(len(x) for x in encs) if pad_to is None else pad_to
+    pad = self.pad
+
+    # 将所有序列填充到maxlen长度，填充方式是在每条序列末尾添加[pad]，强制对齐形成规则的张量
+    arr = [x + [pad] * (maxlen - len(x)) for x in encs] 
+    
+    # 记录原始序列的真实长度，这条信息将用于Attention，避免模型关注到[pad] Token
+    lengths = torch.LongTensor([len(x) for x in encs])  
+
+    # 经过填充对齐Token ID张量输入给模型，原始序列的真实长度张量用于Attention
+    return torch.LongTensor(arr), lengths
+```
+*字符是人类语言中具有最小语义功能的抽象单位例如字母`A`、汉字`中`、符号`+`等，而字节是计算机存储和传输数据的最小可寻址物理单位，字符可以由一个或多个字节表示是字符编码的核心机制。*
+
+batch_encode阶段返回对齐处理张量、未对齐处理的序列长度的考虑：
+- 不规则的张量不能直接输入到为高性能并行计算优化的硬件GPU、TPU中，对齐是进行批处理和利用硬件并行性的必要预处理步骤。这种填充虽然解决了并行计算的问题，但也引入了计算冗余比如这里的[pad]。
+- 原始序列长度信息，则是为了告诉模型末尾填充[pad]从哪里开始的，从而在Attention机制中屏蔽掉它们，防止其将计算资源和注意力分散到这些无关紧要的数据上，确保模型只关注真实的输入信息。
+
+**第二步：构建self-attention**
+```python
+class SimpleSelfAttention(nn.Module):
+    def __init__(self, d_model, nhead):
+        super().__init__()
+        # 检查模型的隐藏层维度d_model能否被头数量nhead整除
+        assert d_model % nhead == 0 
+        self.nhead = nhead           # 多头注意力机制的头数量
+        self.d_k = d_model // nhead  # 每一个头分配到的维度
+        # 投影层将输入 X 投影到 Q、K、V 三个张量，总输出维度为 3 * d_model。
+        self.qkv = nn.Linear(d_model, d_model * 3) 
+        self.out = nn.Linear(d_model, d_model)
+    def forward(self, x, mask=None):
+        B, T, D = x.shape # 输入张量的信息
+        # 线性投影 Q, K, V
+        qkv = self.qkv(x)  # 对输入[B, T, D]进行投影，得到形状为[B, T, 3*D]的融合张量
+        q, k, v = qkv.chunk(3, dim=-1) # 沿最后一个维度均切分成 Q, K, V，形状均为[B, T, D]
+
+        # 多头拆分借助view()，Q, K, V改变[B, T, D]->[B, T, nhead, d_k]
+        # transpose转置，Q, K, V改变[B, T, nhead, d_k]->[B, nhead, T, d_k]
+        q = q.view(B, T, self.nhead, self.d_k).transpose(1, 2) # 先拆分再转置
+        k = k.view(B, T, self.nhead, self.d_k).transpose(1, 2)
+        v = v.view(B, T, self.nhead, self.d_k).transpose(1, 2)
+
+        # 计算Q和K的内积相似度，形状为[B, nhead, T, T]
+        # 除以 √d_k 尺度缩放防止内积结果过大，导致归一化处理以后梯度消失
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+        
+        # Attention Mask掩码操作
+        if mask is not None:
+            # mask通常为[B, T]，生成掩码~mask.bool()需要掩码的地方为1，乘以-1e9将mask处的得分设为一个极小的负数。
+            attn_mask = (~(mask.bool().unsqueeze(1).unsqueeze(2))) * -1e9
+            scores = scores + attn_mask  # 对得分进行掩码操作
+
+        # Softmax归一化：将得分转换为注意力权重，极小负数的位置权重趋近于 0（完成屏蔽）。
+        attn = F.softmax(scores, dim=-1) 
+        # 注意力加权，权重attn乘以Value，得到加权求和的输出[B, nhead, T, d_k]。
+        out = torch.matmul(attn, v)
+
+        # 先转置恢复 [B, T, nhead, d_k]，
+        # 然后用contiguous().view() 将所有头的输出拼接回原始的D维度 [B, T, D]。
+        out = out.transpose(1, 2).contiguous().view(B, T, D)
+        return self.out(out)
+```
 
 ## 5.3 DeepSeek创新与实战复现
 ### 5.3.1 DeepSeek的创新关键点
