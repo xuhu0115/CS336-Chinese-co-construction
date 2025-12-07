@@ -757,9 +757,6 @@ class TransformerBlock(nn.Module):
 **第五步：简易LLM＋MOE模型**
 ```python
 # mini LLM+MoE模型
-"""
-LLM = Embedding + Position + Transformer Layers + 输出投影
-"""
 class MiniMoELLModel(nn.Module):
     def __init__(self, vocab_size, d_model=256, nhead=4, n_layers=4, d_ff=1024,
                  use_moe_layer_index=None, moe_params=None):
@@ -815,6 +812,12 @@ class MiniMoELLModel(nn.Module):
         logits = self.lm_head(x)    # 投影到词汇表维度，得到logits[B, T, vocab_size]
         return logits  # 返回Logits，用于损失计算或Softmax后的概率预测
 ```
+*mini LLM = token Embedding + 位置编码 + Transformer Layers + 输出投影*
+
+>mini LLM在输出投影前一层使用LayerNorm的作用是什么？
+>
+>应用层归一化（LayerNorm）作为进入最终预测头lm_head之前的标准步骤，其核心作用是稳定和规范化模型输出的隐藏表示 $x$ 。它对每个Token embedding的d_model维度特征进行不同样本的独立归一化，确保输入到最终线性投影层的特征 $x$ 具有近似一致的尺度和分布。这种规范化效应不仅能显著稳定模型的训练过程，允许使用更高的学习率，从而加快收敛速度，还能帮助lm_head更准确地将统一尺度的特征映射回词汇表（logits），最终提高LLM的预测精度。
+
 ## 5.3 DeepSeek创新与实战复现
 ### 5.3.1 DeepSeek的创新关键点
 DeepSeekMoE一种创新的专家混合模型，其目标是实现**极致的专家专业化**，以解决传统MoE模型中存在的**知识混合**和**知识重复**问题，从而在保持计算成本适中的同时，极大地提升模型性能和参数效率。`DeepSeekMoE`的架构主要通过以下两个策略来实现专家专业化：
