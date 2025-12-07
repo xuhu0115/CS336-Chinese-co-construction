@@ -79,9 +79,9 @@ $$
 
 在强化学习中，我们有一个**策略**（policy）\(\pi_\theta(a|s)\)，它用参数 \(\theta\) 控制智能体如何根据状态 \(s\) 选择动作 \(a\)。  
 目标是：**最大化期望回报**（expected return）：
-\[
+$$
 J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \right]
-\]
+$$
 其中 \(\tau = (s_1, a_1, s_2, a_2, ..., s_T)\) 是一条轨迹（trajectory），\(R(\tau)\) 是总奖励。
 
 我们需要计算 \(\nabla_\theta J(\theta)\) 来用梯度上升更新 \(\theta\)。
