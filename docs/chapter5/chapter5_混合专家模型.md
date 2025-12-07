@@ -524,14 +524,14 @@ class SimpleSelfAttention(nn.Module):
         assert d_model % nhead == 0 
         self.nhead = nhead           # 多头注意力机制的头数量
         self.d_k = d_model // nhead  # 每一个头分配到的维度
-        # 投影层将输入 X 投影到 Q、K、V 三个张量，总输出维度为 3 * d_model。
+        # 投影层将输入x投影到Q、K、V三个张量，总输出维度为3 * d_model。
         self.qkv = nn.Linear(d_model, d_model * 3) 
         self.out = nn.Linear(d_model, d_model)
     def forward(self, x, mask=None):
         B, T, D = x.shape # 输入张量的信息
         # 线性投影 Q, K, V
         qkv = self.qkv(x)  # 对输入[B, T, D]进行投影，得到形状为[B, T, 3*D]的融合张量
-        q, k, v = qkv.chunk(3, dim=-1) # 沿最后一个维度均切分成 Q, K, V，形状均为[B, T, D]
+        q, k, v = qkv.chunk(3, dim=-1) # 沿最后一个维度均切分成Q, K, V，形状均为[B, T, D]
 
         # 多头拆分借助view()，Q, K, V改变[B, T, D]->[B, T, nhead, d_k]
         # transpose转置，Q, K, V改变[B, T, nhead, d_k]->[B, nhead, T, d_k]
@@ -549,13 +549,13 @@ class SimpleSelfAttention(nn.Module):
             attn_mask = (~(mask.bool().unsqueeze(1).unsqueeze(2))) * -1e9
             scores = scores + attn_mask  # 对得分进行掩码操作
 
-        # Softmax归一化：将得分转换为注意力权重，极小负数的位置权重趋近于 0（完成屏蔽）。
+        # Softmax归一化：将得分转换为注意力权重，极小负数的位置权重趋近于0（完成屏蔽）。
         attn = F.softmax(scores, dim=-1) 
         # 注意力加权，权重attn乘以Value，得到加权求和的输出[B, nhead, T, d_k]。
         out = torch.matmul(attn, v)
 
         # 先转置恢复 [B, T, nhead, d_k]，
-        # 然后用contiguous().view() 将所有头的输出拼接回原始的D维度 [B, T, D]。
+        # 然后用contiguous().view() 将所有头的输出拼接回原始的D维度[B, T, D]。
         out = out.transpose(1, 2).contiguous().view(B, T, D)
         return self.out(out)
 ```
