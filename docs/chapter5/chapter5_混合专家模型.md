@@ -421,11 +421,12 @@ if __name__ == "__main__":
    - **Router Z-loss**：为避免路由logits在低精度下产生极端值，引入对logits幅度的惩罚项，减小softmax对极端输入的敏感性，从而提高训练的数值稳定性。
    - **较小的初始化**：考虑到路由器随机初始化困难，于是通过从截断正态分布中抽取元素来初始化权重矩阵，均值为0，适当减小某些线性层、FFN的初始化尺度可以降低训练初期梯度方差，减少早期不稳定现象，提高模型的能力。
      
-     <div align="center">  
+<div align="center">  
 <img width="1200" height="600" alt="c7b2879ba70391b9e340c9c062a232b2" src="https://github.com/user-attachments/assets/33892936-0c5c-4743-8047-6e65d9d85401" />
    <p>图5.6 Switch Transformer</p>
  </div>
- 
+
+
 >Switch Transformer子层顺序采用**自注意力层Self-Attention → 前馈网络FFN、MoE**的结构，是实现高效训练与深度语义建模的关键。
 
    ①**先Self-Attention（建立全局语义）**：
@@ -704,7 +705,7 @@ def forward(self, x, mask=None):
    - 作用：强制所有专家只能处理有限数量的token，从而避免少数专家被过度占用token资源，并确保整个MoE层的计算时间可预测且稳定。但是被丢弃的token缺失了部分输入的语义信息，如果它未经过任何专家处理，这会给模型的收敛速度和最终准确率带来负面影响。
 
 **第四步：构建完整的Transfomer板块**
-支持在传统FFN和MoE之间切换，一个Transformer Block含有两个子层依次为：自注意力层、FNN或MoE，结构图可以参考图Switch Transformer。
+支持在传统FFN和MoE之间切换，一个Transformer Block含有两个子层依次为：自注意力层、FNN或MoE，结构可以参考图Switch Transformer。
 ```python
 class TransformerBlock(nn.Module):
     def __init__(self, d_model, nhead, d_ff, use_moe=False, moe_params=None, dropout=0.1):
@@ -728,7 +729,7 @@ class TransformerBlock(nn.Module):
             # 稀疏MoE层 
             self.moe = MoELayer(**moe_params)
         else:
-            # 传统的前馈网络 (Feed-Forward Network, FFN)
+            # 传统的前馈网络(FFN)
             self.ffn = nn.Sequential(
                 nn.Linear(d_model, d_ff), # 扩展维度
                 nn.GELU(),                # 激活函数
@@ -752,6 +753,67 @@ class TransformerBlock(nn.Module):
             ffn_out = self.ffn(self.ln2(x))
             x = x + self.dropout(ffn_out)
         return x
+```
+**第五步：简易LLM＋MOE模型**
+```python
+# mini LLM+MoE模型
+"""
+LLM = Embedding + Position + Transformer Layers + 输出投影
+"""
+class MiniMoELLModel(nn.Module):
+    def __init__(self, vocab_size, d_model=256, nhead=4, n_layers=4, d_ff=1024,
+                 use_moe_layer_index=None, moe_params=None):
+        """
+        use_moe_layer_index: 哪些层使用MoE，例如[1,3]
+        moe_params: MoE参数字典，会自动注入 d_model和d_ff
+        """
+        super().__init__()
+        self.vocab_size = vocab_size      # 词汇表大小，不用考虑特殊token的预测
+        self.d_model = d_model            # Token Embedding 维度
+
+        # Token+位置编码
+        self.tok_emb = nn.Embedding(vocab_size, d_model) # Token嵌入层
+        self.pos_emb = nn.Embedding(4096, d_model)        # 可学习的位置编码，最大上下文窗口长度限制为4096
+
+        # Transformer层
+        self.layers = nn.ModuleList()
+        # 判断是否使用MoE
+        if use_moe_layer_index is None:
+            use_moe_layer_index = set() # 默认使用标准FFN
+        else:
+            use_moe_layer_index = set(use_moe_layer_index)
+        # 配置MoE相关参数
+        if moe_params is not None:
+            moe_params = moe_params.copy()        # 复制参数，注入LLM的d_model和d_ff
+            moe_params.setdefault("d_model", d_model)
+            moe_params.setdefault("d_ff", d_ff)
+
+        for i in range(n_layers):
+            use_moe = (i in use_moe_layer_index)  # 确定当前层是否使用MoE模块
+            self.layers.append(
+                TransformerBlock(
+                    d_model=d_model,
+                    nhead=nhead,
+                    d_ff=d_ff,
+                    use_moe=use_moe,
+                    moe_params=moe_params
+                )
+            )
+
+        # LayNorm+输出层，共享embedding权重
+        self.ln_f = nn.LayerNorm(d_model) # 最终Layer Normalization
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False) # 语言模型头，logits投影
+        self.lm_head.weight = self.tok_emb.weight   # 权重共享
+
+    def forward(self, idx, mask=None):
+        B, T = idx.shape
+        pos = torch.arange(T, device=idx.device).unsqueeze(0) # 生成位置索引 [1, T]
+        x = self.tok_emb(idx) + self.pos_emb(pos)      # 输入嵌入=Token Embedding + Position Embedding，[B, T, D]
+        for blk in self.layers:
+            x = blk(x, mask=mask)   # 经过Transformer块，包含Attention和FFN、MoE
+        x = self.ln_f(x)            # 最终的层归一化
+        logits = self.lm_head(x)    # 投影到词汇表维度，得到logits[B, T, vocab_size]
+        return logits  # 返回Logits，用于损失计算或Softmax后的概率预测
 ```
 ## 5.3 DeepSeek创新与实战复现
 ### 5.3.1 DeepSeek的创新关键点
