@@ -81,10 +81,12 @@ $$
 
 在强化学习中，我们有一个**策略**（policy）$\pi_\theta(a|s)$，它用参数 $\theta$ 控制智能体如何根据状态 $s$ 选择动作 $a$。  
 目标是：**最大化期望回报**（expected return）：
+
 $$
 J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \right]
 $$
-其中 $\tau = (s_1, a_1, s_2, a_2, ..., s_T)$ 是一条轨迹（trajectory），$R(\tau)$ 是总奖励。
+
+其中 $\tau = (s_1, a_1, s_2, a_2, ..., s_T)$ 是一条轨迹（trajectory）， $R(\tau)$ 是总奖励。
 
 我们需要计算 $\nabla_\theta J(\theta)$ 来用梯度上升更新 $\theta$。
 
@@ -92,15 +94,19 @@ $$
 🔹 尝试 1: 策略梯度（Policy Gradient）
 
 利用**似然比技巧**（likelihood ratio trick），可以推出：
+
 $$
 \nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \nabla_\theta \log \pi_\theta(\tau) \right]
 $$
-而 $\pi_\theta(\tau) = p(s_1) \prod_{t=1}^T \pi_\theta(a_t|s_t) p(s_{t+1}|s_t, a_t)$，所以 $\nabla_\theta \log \pi_\theta(\tau) = \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t)$
+
+而 $\pi_\theta(\tau) = p(s_1) \prod_{t=1}^T \pi_\theta(a_t|s_t) p(s_{t+1}|s_t, a_t)$ ，所以 $\nabla_\theta \log \pi_\theta(\tau) = \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t)$
 
 于是得到**REINFORCE**算法（最基础的策略梯度）：
+
 $$
 \nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \left( \sum_{t=1}^T R_t \right) \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t) \right]
 $$
+
 其中 $R_t = \sum_{k=t}^T \gamma^{k-t} r_k$ 是从时间 $t$ 开始的折扣回报。
 
 策略梯度存在哪些问题：
@@ -114,10 +120,12 @@ $$
 核心思想：不要直接用原始梯度更新，而是**每次只允许策略变动一点点**，确保新策略 $\pi_{\theta_{\text{new}}}$ 和旧策略 $\pi_{\theta_{\text{old}}}$ 足够接近。
 
 具体做法：解一个**带约束的优化问题**：
+
 $$
 \max_\theta \quad \mathbb{E}_{s,a \sim \pi_{\theta_{\text{old}}}} \left[ \frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)} A^{\pi_{\text{old}}}(s,a) \right] \\
 \text{subject to} \quad \mathbb{E}_s \left[ D_{\text{KL}} \left( \pi_{\theta_{\text{old}}}(\cdot|s) \,\|\, \pi_\theta(\cdot|s) \right) \right] \leq \delta
 $$
+
 - 这个目标是**近似**策略改进（使用重要性采样 + 优势函数 $A$）
 - 约束项限制 KL 散度不超过一个小常数 $\delta$
 
@@ -136,6 +144,7 @@ TRPO 特点：
 PPO 的核心创新：**裁剪概率比（Clipped Probability Ratio）**
 
 定义**概率比**（likelihood ratio）：
+
 $$
 r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
 $$
@@ -145,6 +154,7 @@ $$
 PPO 的想法是：**如果 $r_t(\theta)$ 太大或太小，就把它“裁剪”掉**！
 
 于是提出**裁剪目标函数**（Clipped Surrogate Objective）：
+
 $$
 L^{\text{CLIP}}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) A_t, \ \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \cdot A_t \right) \right]
 $$
