@@ -44,6 +44,7 @@ RLVR 聚焦于一类特殊任务：**输出可被程序自动判分**。典型�
 - **形式化证明**：证明步骤是否逻辑自洽。
 
 在这些场景中，奖励函数 $R(z)$ 可定义为：
+
 $$
 R(z) = 
 \begin{cases}
@@ -51,6 +52,7 @@ R(z) =
 0 & \text{否则}
 \end{cases}
 $$
+
 或更精细的**过程奖励**（如每步推理得分）。这种**高信噪比、可规模化**的奖励，正是 RL 大展身手的舞台。
 
 > ✅ **RLVR 的本质**：在那些“对错可被自动判定”的窄域任务中，绕过人类偏好，直接用形式化验证机制提供强化学习的奖励信号，从而实现更可靠、可扩展、可验证的智能体训练
@@ -77,47 +79,55 @@ $$
 
 从原始的策略梯度（Policy Gradient） → 到更稳定的TRPO（Trust Region Policy Optimization） → 再到更实用的PPO（Proximal Policy Optimization）
 
-在强化学习中，我们有一个**策略**（policy）\(\pi_\theta(a|s)\)，它用参数 \(\theta\) 控制智能体如何根据状态 \(s\) 选择动作 \(a\)。  
+在强化学习中，我们有一个**策略**（policy）$\pi_\theta(a|s)$，它用参数 $\theta$ 控制智能体如何根据状态 $s$ 选择动作 $a$。  
 目标是：**最大化期望回报**（expected return）：
-\[
-J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \right]
-\]
-其中 \(\tau = (s_1, a_1, s_2, a_2, ..., s_T)\) 是一条轨迹（trajectory），\(R(\tau)\) 是总奖励。
 
-我们需要计算 \(\nabla_\theta J(\theta)\) 来用梯度上升更新 \(\theta\)。
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \right]
+$$
+
+其中 $\tau = (s_1, a_1, s_2, a_2, ..., s_T)$ 是一条轨迹（trajectory）， $R(\tau)$ 是总奖励。
+
+我们需要计算 $\nabla_\theta J(\theta)$ 来用梯度上升更新 $\theta$。
 
 
 🔹 尝试 1: 策略梯度（Policy Gradient）
 
 利用**似然比技巧**（likelihood ratio trick），可以推出：
-\[
+
+$$
 \nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ R(\tau) \nabla_\theta \log \pi_\theta(\tau) \right]
-\]
-而 \(\pi_\theta(\tau) = p(s_1) \prod_{t=1}^T \pi_\theta(a_t|s_t) p(s_{t+1}|s_t, a_t)\)，所以 \(\nabla_\theta \log \pi_\theta(\tau) = \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t)\)
+$$
+
+而 $\pi_\theta(\tau) = p(s_1) \prod_{t=1}^T \pi_\theta(a_t|s_t) p(s_{t+1}|s_t, a_t)$ ，所以 $\nabla_\theta \log \pi_\theta(\tau) = \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t)$
 
 于是得到**REINFORCE**算法（最基础的策略梯度）：
-\[
+
+$$
 \nabla_\theta J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \left( \sum_{t=1}^T R_t \right) \sum_{t=1}^T \nabla_\theta \log \pi_\theta(a_t|s_t) \right]
-\]
-其中 \(R_t = \sum_{k=t}^T \gamma^{k-t} r_k\) 是从时间 \(t\) 开始的折扣回报。
+$$
+
+其中 $R_t = \sum_{k=t}^T \gamma^{k-t} r_k$ 是从时间 $t$ 开始的折扣回报。
 
 策略梯度存在哪些问题：
-- **高方差（high variance）**：因为整个轨迹的总奖励 \(R(\tau)\) 被用作每个动作的“信号”，但很多动作其实和最终结果无关。
+- **高方差（high variance）**：因为整个轨迹的总奖励 $R(\tau)$ 被用作每个动作的“信号”，但很多动作其实和最终结果无关。
 - **更新不稳定**：一次更新可能太大，导致策略崩溃（“catastrophic collapse”）。
 
 > ✅ 所以策略梯度**理论上正确，但实践中难用**。
 
 🔹 尝试 2: TRPO（Trust Region Policy Optimization）
 
-核心思想：不要直接用原始梯度更新，而是**每次只允许策略变动一点点**，确保新策略 \(\pi_{\theta_{\text{new}}}\) 和旧策略 \(\pi_{\theta_{\text{old}}}\) 足够接近。
+核心思想：不要直接用原始梯度更新，而是**每次只允许策略变动一点点**，确保新策略 $\pi_{\theta_{\text{new}}}$ 和旧策略 $\pi_{\theta_{\text{old}}}$ 足够接近。
 
 具体做法：解一个**带约束的优化问题**：
-\[
+
+$$
 \max_\theta \quad \mathbb{E}_{s,a \sim \pi_{\theta_{\text{old}}}} \left[ \frac{\pi_\theta(a|s)}{\pi_{\theta_{\text{old}}}(a|s)} A^{\pi_{\text{old}}}(s,a) \right] \\
 \text{subject to} \quad \mathbb{E}_s \left[ D_{\text{KL}} \left( \pi_{\theta_{\text{old}}}(\cdot|s) \,\|\, \pi_\theta(\cdot|s) \right) \right] \leq \delta
-\]
-- 这个目标是**近似**策略改进（使用重要性采样 + 优势函数 \(A\)）
-- 约束项限制 KL 散度不超过一个小常数 \(\delta\)
+$$
+
+- 这个目标是**近似**策略改进（使用重要性采样 + 优势函数 $A$）
+- 约束项限制 KL 散度不超过一个小常数 $\delta$
 
 
 TRPO 特点：
@@ -134,26 +144,28 @@ TRPO 特点：
 PPO 的核心创新：**裁剪概率比（Clipped Probability Ratio）**
 
 定义**概率比**（likelihood ratio）：
-\[
+
+$$
 r_t(\theta) = \frac{\pi_\theta(a_t|s_t)}{\pi_{\theta_{\text{old}}}(a_t|s_t)}
-\]
+$$
 
-在 TRPO 中，我们希望 \(r_t(\theta) \approx 1\)（即新旧策略输出概率接近）。
+在 TRPO 中，我们希望 $r_t(\theta) \approx 1$（即新旧策略输出概率接近）。
 
-PPO 的想法是：**如果 \(r_t(\theta)\) 太大或太小，就把它“裁剪”掉**！
+PPO 的想法是：**如果 $r_t(\theta)$ 太大或太小，就把它“裁剪”掉**！
 
 于是提出**裁剪目标函数**（Clipped Surrogate Objective）：
-\[
+
+$$
 L^{\text{CLIP}}(\theta) = \mathbb{E}_t \left[ \min\left( r_t(\theta) A_t, \ \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \cdot A_t \right) \right]
-\]
+$$
 
 直观解释：
-- 如果 \(A_t > 0\)（这个动作好）：
-  - 我们希望增大 \(\pi_\theta(a_t|s_t)\)，即让 \(r_t > 1\)
-  - 但如果 \(r_t > 1+\epsilon\)，说明更新太大 → 裁剪掉，只取 \(1+\epsilon\)
-- 如果 \(A_t < 0\)（这个动作差）：
-  - 我们希望减小 \(\pi_\theta(a_t|s_t)\)，即让 \(r_t < 1\)
-  - 但如果 \(r_t < 1-\epsilon\)，说明惩罚太猛 → 裁剪为 \(1-\epsilon\)
+- 如果 $A_t > 0$（这个动作好）：
+  - 我们希望增大 $\pi_\theta(a_t|s_t)$，即让 $r_t > 1$
+  - 但如果 $r_t > 1+\epsilon$，说明更新太大 → 裁剪掉，只取 $1+\epsilon$
+- 如果 $A_t < 0$（这个动作差）：
+  - 我们希望减小 $\pi_\theta(a_t|s_t)$，即让 $r_t < 1$
+  - 但如果 $r_t < 1-\epsilon$，说明惩罚太猛 → 裁剪为 $1-\epsilon$
 
 > 🎯 这样，PPO **自动限制了策略更新的步长**，无需显式 KL 约束！
 
@@ -389,21 +401,21 @@ DPO（Direct Preference Optimization）是近年来兴起的一种替代方案�
 
 #### GRPO 的目标函数
 
-\[
+$$
 \mathcal{J}_{GRPO}(\theta) = \mathbb{E} \left[ q \sim P(Q), \{o_i\}_{i=1}^G \sim \pi_{\theta_{old}}(O|q) \right] \frac{1}{G} \sum_{i=1}^{G} \left( \min\left( \frac{\pi_\theta(o_i|q)}{\pi_{\theta_{old}}(o_i|q)} A_i, \text{clip}\left( \frac{\pi_\theta(o_i|q)}{\pi_{\theta_{old}}(o_i|q)}, 1-\epsilon, 1+\epsilon \right) A_i \right) - \beta \mathbb{D}_{KL} \left( \pi_\theta || \pi_{ref} \right) \right)
-\]
+$$
 
 - `min(...)`部分：是 PPO 的经典裁剪目标函数，用于更新策略 $π_θ$。
-    - \(\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{old}}(o_i|q)}\) 是新旧策略的概率比。
+    - $\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{old}}(o_i|q)}$ 是新旧策略的概率比。
     - $A_i$ 是第 $i$ 个输出 $o_i$ 的“优势”，这是 GRPO 最大的创新点。
     - `clip(...)` 是 PPO 的裁剪机制，防止策略更新过大。
 - $-β D_KL(...)$ 部分：这是 KL 散度惩罚项，用于防止新策略 `π_θ` 偏离参考策略 `π_ref` 太远，保证生成结果的稳定性。
     - `β` 是控制 KL 惩罚强度的超参数。
 
 PPO 的目标函数：
-\[
+$$
 \min \left( \frac{\pi_\theta(a|s)}{\pi_{\theta_k}(a|s)} A^{\pi_{\theta_k}}(s,a), \text{ clip} \left( \frac{\pi_\theta(a|s)}{\pi_{\theta_k}(a|s)}, 1-\epsilon, 1+\epsilon \right) A^{\pi_{\theta_k}}(s,a) \right)
-\]
+$$
 
 GRPO 与 PPO 两者的目标函数结构非常相似，都包含概率比和裁剪。核心区别在于 `A` 的来源：
 - **PPO**: `A` 是通过价值网络 `V(s)` 和 GAE 计算出来的，这是一个复杂且资源密集的过程。
@@ -412,17 +424,17 @@ GRPO 与 PPO 两者的目标函数结构非常相似，都包含概率比和裁�
 
 #### KL 散度的计算
 
-\[
+$$
 \mathbb{D}_{KL} \left( \pi_\theta || \pi_{ref} \right) = \frac{\pi_{ref}(o_i|q)}{\pi_\theta(o_i|q)} - \log \frac{\pi_{ref}(o_i|q)}{\pi_\theta(o_i|q)} - 1
-\]
+$$
 
 这是一个近似的 KL 散度公式。它不是标准的积分形式，而是在每个采样点 $o_i$ 上进行近似。它的作用是衡量当前策略 $π_θ$ 和参考策略 $π_{ref}$ 在生成特定输出 $o_i$ 时的概率差异。
 
 #### 组内 z-score 优势
 
-\[
+$$
 A_i = \frac{r_i - \text{mean}(\{r_1, r_2, \cdots, r_G\})}{\text{std}(\{r_1, r_2, \cdots, r_G\})}
-\]
+$$
 
 这是 GRPO 的灵魂所在！它完全抛弃了 PPO 中复杂的 GAE 计算。
 
@@ -680,8 +692,6 @@ Qwen 3 提出了 **Thinking Mode Fusion**，试图在一个模型中融合“思
 3.  **数据为王**: 无论是 R1 的冷启动数据，还是 Kimi 的难度筛选，高质量、高难度的 Prompt 集合是 RL 成功的关键。
 4.  **过程奖励 (PRM) vs. 结果奖励 (ORM)**: 目前 R1 等模型主要依赖结果奖励。虽然过程奖励（每一步都打分）理论上更好，但标注成本极高且难以自动化，目前尚未在大规模模型中展现出超越 ORM 的统治力。
 
-**下节课预告**：
-既然我们已经掌握了如何评估和训练模型，接下来我们将探讨如何**评估 (Evaluation)** 这些模型。在基准测试（Benchmarks）日益饱和的今天，如何科学地衡量一个模型的能力？
 
 ---
 
