@@ -34,18 +34,6 @@ warp本质上是一组共同执行的线程。warp存在的意义在于这些线
 
 ### 7.2.1 基准测试（Benchmarking）
 
-```python
-
-
-def run_operation1(dim: int, operation: Callable) -> Callable:
-    # Setup: create one random dim x dim matrices
-    x = torch.randn(dim, dim, device=get_device())
-    # Return a function to perform the operation
-    return lambda : operation(x)
-
-
-```
-
 首先定义MLP模型，然后生成随机高斯分布输入，最后在5个步长中运行，每次计算前向传播后执行反向传播，最终返回MLP输出的平均值。这里甚至没有损失函数，简单到只是运行MLP前向传播并在最后进行平均池化。
 
 ```python
@@ -81,7 +69,7 @@ def run_mlp(dim: int, num_layers: int, batch_size: int, num_steps: int) -> Calla
 
 ```python
 
-# 进行基准测试（测量运行时间）和性能分析（探查函数内部的时间消耗分布）
+# 进行基准测试（测量运行时间）和性能分析（探查函数内部的时间消耗分布）的伪代码
 
 def benchmarking_and_profiling():
     run_mlp(dim=128, num_layers=16, batch_size=128, num_steps=5)
@@ -91,28 +79,27 @@ def benchmarking_and_profiling():
 ```
 
 
-接下来则要做两件事：**进行基准测试（测量运行时间）和性能分析（探查函数内部的时间消耗分布）**。
+接下来则要做两件事：**进行基准测试（测量运行时间，benchmarking）和性能分析（探查函数内部的时间消耗分布，profiling）**。
 
-我们先从基准测试开始。基准测试就是测量执行这些操作的实际耗时，这里只需要关注多层感知机函数的端到端执行时间。
+我们先从基准测试开始。基准测试就是测量执行这些操作的实际耗时，这里**只需要关注多层感知机函数的端到端执行时间**。
 
-我们进行基准测试的目的是要比较不同实现的性能：将Triton实现与手写C++、PyyTorch实现以及Torch编译进行对比。我们需要评估编写CUDA内核是否值得，同时还想了解当矩阵乘法规模增大时，性能会下降多少。因此我们需要进行实证基准测试。
+我们进行基准测试的目的是要比较不同实现的性能：将**Triton实现与手写C++、Pytorch实现以及Torch编译进行对比**。我们需要评估编写CUDA内核是否值得，同时还想了解当矩阵乘法规模增大时，性能会下降多少。因此我们需要进行实证基准测试。
 
-本章会一直使用这个基准测试函数，基准测试函数包含以下部分：需要测试的运行函数、若干预热迭代次数、以及多次正式测试次数。
+本章会一直使用这个基准测试函数，基准测试函数包含以下部分：**需要测试的运行函数、若干预热迭代次数、以及多次正式测试次数。**
 
-**预热**
+1. **预热**
 
 **首次运行PyTorch代码时会比迭代的时候慢很多**，因为首次运行代码会有**编译代码，向GPU发送指令**等各种初始化开销。预热能确保我们测量的是**稳定状态**下的速度而不是启动速度。当运行成千上万次迭代时，我们关心的正是稳定性能，而不是即时编译CUDA代码的速度。
 
-**CUDA同步**
+2. **CUDA同步**
 
-另一个重要点是调用torch.cuda.synchronize()。这是因为GPU和CPU是**两个独立的计算单元**，可以并行运行。我们的Python代码会在CPU上执行，当**运行相关计算时会向GPU分发CUDA内核**，此时CPU会继续执行后续代码而不等待GPU完成。这种特性虽然有利于编写高性能代码，但会给**基准测试**带来问题，如果GPU在异步执行而CPU在运行其他任务，就无法准确测量GPU执行时间，因为GPU是离线计算，**CPU不会等待GPU，而是继续执行代码，导致计时会提前结束**。
+另一个重要点是调用 `torch.cuda.synchronize()` 。这是因为GPU和CPU是**两个独立的计算单元**，可以并行运行。我们的Python代码会在CPU上执行，当**运行相关计算时会向GPU分发CUDA内核**，此时CPU会继续执行后续代码而不等待GPU完成。这种特性虽然有利于编写高性能代码，但会给**基准测试**带来问题，如果GPU在异步执行而CPU在运行其他任务，就无法准确测量GPU执行时间，因为GPU是离线计算，**CPU不会等待GPU，而是继续执行代码，导致计时会提前结束**。
 
-torch.cuda.synchronize()能确保GPU和CPU达到同步状态，清空所有队列任务，使两者处于代码执行的同一节点。这样我们就能在真实同步状态下进行多次计时测量。
-
-接下来将执行计算，在这个例子中就是sleep命令。我会重复执行三次。由于我设置的休眠时间是50毫秒，最终得到的就是这个时长。因此我对这个时长测量了三次。这里我在运行结束时还调用了torch.cuda.synchronize，以确保GPU和CPU状态同步。
-
+`torch.cuda.synchronize()` 能确保GPU和CPU达到同步状态，清空所有队列任务，使两者处于代码执行的同一节点。这样我们就能在真实同步状态下进行多次计时测量。
 
 ```python
+# 基准测试代码
+
 def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials: int = 3):
     """Benchmark `func` by running it `num_trials`, and return all the times."""
     # 热身：第一次运行可能较慢,因为要编译和缓存
@@ -143,16 +130,17 @@ def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials:
 现在我们可以进行矩阵乘法的基准测试。我将逐步演示部分结果，虽然只是用数据验证已知结论，但希望通过具体演示确保理解一致。我们会在课程使用的**A100GPU**上运行测试，针对**不同尺寸的矩阵乘法进行测量**，系统收集了各个维度的矩阵乘法耗时数据。
 ```python
 
-# 矩阵乘法基准测试代码
-def benchmarking():
+    # 矩阵乘法基准测试代码
+
     '''
     Benchmarking 测量执行某些操作的实际耗时。它只给你端到端的时间，而不是时间花在哪里（性能分析）。
     比较不同的实现（哪个更快？），以及理解性能如何扩展（例如，随着维度的增加）。
     '''
-    benchmark("sleep", lambda : time.sleep(50 / 1000))
+
+    benchmark("sleep", lambda : time.sleep(50 / 1000)) #在上面实现的的基准测试函数
     
     if torch.cuda.is_available():
-        dims = (1024, 2048, 4096, 8192, 16384)  # @inspect dims
+        dims = (1024, 2048, 4096, 8192, 16384)  # 不同维度
     else:
         dims = (1024, 2048)  # @inspect dims
     
@@ -166,9 +154,9 @@ def benchmarking():
 
 <img src="images/7-1-矩阵运算时间.png" width="800" alt="7-1-矩阵运算时间.png">
 
-正如预期，随着矩阵尺寸增大，运行时间呈现超线性增长。不过在最小尺寸（如1024和2048）时，耗时基本没有增长，因为执行矩阵乘法存在**固定开销**，需要将数据从CPU传输到GPU，启动内核也有开销，所以并非从零开始就一直保持超线性增长。但当矩阵足够大时，确实观察到了预期的**缩放规律**。
+正如预期，随着矩阵尺寸增大，运行时间呈现**超线性增长**。不过在最小尺寸（如1024和2048）时，耗时基本没有增长，因为执行矩阵乘法存在**固定开销**，需要**将数据从CPU传输到GPU，启动内核也有开销，所以并非从零开始就一直保持超线性增长**。但当矩阵足够大时，确实观察到了预期的**缩放规律**。
 
-现在让我们尝试对MLP进行基准测试。具体操作是：将MLP扩展至256维，设置四层网络，批处理大小为256，执行两个训练步。测得耗时6.2秒。
+### 7.2.3 MLP的基准测试
 
 ```python
 def benchmarking():
@@ -181,8 +169,11 @@ def benchmarking():
     num_steps = 2  # @inspect num_steps
     mlp_base = benchmark("run_mlp", run_mlp(dim=dim, num_layers=num_layers, batch_size=batch_size, num_steps=num_steps)) # @inspect mlp_base
     
-    # 对步数进行缩放
 
+    #以下是基础扩展测试
+
+
+    # 对步数进行缩放
     step_results = []
 
     for scale in (2, 3, 4, 5):
@@ -192,7 +183,6 @@ def benchmarking():
         step_results.append((scale, result))  # @inspect step_results
     
     # 增加层数
-
     layer_results = []
     for scale in (2, 3, 4, 5):
         result = benchmark(f"run_mlp({scale}x num_layers)", 
@@ -201,7 +191,6 @@ def benchmarking():
         layer_results.append((scale, result))  # @inspect layer_results
     
     # 增加批次大小
-
     batch_results = []
     for scale in (2, 3, 4, 5):
         result = benchmark(f"run_mlp({scale}x batch_size)", 
@@ -210,7 +199,6 @@ def benchmarking():
         batch_results.append((scale, result))  # @inspect batch_results
     
     # 对维度进行缩放
-
     dim_results = []
     for scale in (2, 3, 4, 5):
         result = benchmark(f"run_mlp({scale}x dim)", 
@@ -219,9 +207,12 @@ def benchmarking():
         dim_results.append((scale, result))  # @inspect dim_results
 
 ```
+
+现在让我们尝试对**MLP**进行基准测试。具体操作是：将MLP扩展至256维，设置四层网络，批处理大小为256，执行两个训练步。测得耗时6.2秒（mlp_base)。
+
 <img src="images/7-2-缩放各种参数的规律.png" width="800" alt="7-2-缩放各种参数的规律">
 
-接着可以进行基础扩展测试：将训练步数从2逐步增加到5，分别进行基准测试。与矩阵乘法不同，当增加MLP的前向传播和反向传播次数时，运行时间应该呈线性增长，实际数据也印证了这一点，每次MLP执行约5秒，总体运行时间基本符合n×5秒的规律。同样地，当网络层数从2、3、4增加到5层时，运行时间也随之递增。这次仍然呈现线性增长趋势：单层运行约5秒（略少于5秒），总体耗时约为层数的四倍。再次验证了线性缩放规律。
+接着可以进行**基础扩展测试**：将训练步数从2逐步增加到5，分别进行基准测试。与矩阵乘法不同，当增加MLP的前向传播和反向传播次数时，运行时间应该呈线性增长，实际数据也印证了这一点，每次MLP执行约5秒，总体运行时间基本符合n×5秒的规律。同样地，当网络层数从2、3、4增加到5层时，运行时间也随之递增。这次仍然呈现线性增长趋势：单层运行约5秒（略少于5秒），总体耗时约为层数的四倍。再次验证了**线性缩放规律。**
 
 这完全符合预期，无论是训练步数还是网络层数，都与运行时间存在线性关系。关于批处理规模的测试就此跳过，因为当前追踪的数据量已经有些过于庞杂。那么基准测试这部分就到此为止。
 
@@ -277,9 +268,9 @@ def profiling():
     sleep_profile = profile("sleep", sleep_function) 
 ```
 
-<img src="images/7-3-加法的性能分析.png" width="800" alt="7-3-加法的性能分析">
+<img src="images/7-3-sheep的性能分析.png" width="800" alt="7-3-加法的性能分析">
 
-观察运行结果会发现100%的时间都消耗在名为CUDA设备同步（cudaDeviceSynchronize）的操作上，因为实际上**没有GPU计算任务**。我们现在就像是在分析空操作。
+观察运行结果会发现100%的时间都消耗在名为CUDA设备同步（`cudaDeviceSynchronize`）的操作上，因为实际上**没有GPU计算任务**。我们现在就像是在分析空操作。
 
 ### 7.3.2 矩阵加法的性能分析
 
@@ -298,13 +289,13 @@ def profiling():
     add_profile = profile("add", run_operation2(dim=2048, operation=add_function))
 
 ```
-<img src="images/7-4-sheep的性能分析.png" width="800" alt="7-4-sheep的性能分析">
+<img src="images/7-4-add的性能分析.png" width="800" alt="7-4-add的性能分析">
 
 现在开始分析并调用分析器，会得到类似上面这个图片中的输出结果。这就是分析器返回的内容。
 
-当我们在Python中调用加法函数时，我们显式接触的只有这个add函数，就是A加B。但底层发生的远不止这些。这个操作会被分派到GPU执行：首先经过 $aten:add$ （PyTorch的C++接口层,在表格中第二行字），这个封装器被调用后确认执行**加法运算**，这是最外层的调用封装。接着会分派到具体的内核函数 $vectorized_elementwise_kernel4$ （在表格中第三行），在 $nativeCUDA$ 中执行**向量加法**等等，这才是实际执行加法的部分。同时还有CUDA启动内核操作也耗费时间，CUDA启动内核实际上是CPU执行指令并发送给GPU的过程，**即内核启动耗时**。最后**CUDA设备同步**需要等待GPU完成计算并传回数据，这个阶段同样耗时。仅仅同步屏障这个操作本身就会消耗一定时间。最终我们得到的总时间是：CPU上1.4毫秒，CUDA上17微秒。
+当我们在Python中调用加法函数时，我们显式接触的只有这个add函数，就是A加B。但底层发生的远不止这些。这个操作会被分派到GPU执行：首先经过 `aten:add` （PyTorch的C++接口层,在表格中第二行字），这个封装器被调用后确认执行**加法运算**，这是最外层的调用封装。接着会分派到具体的内核函数 `vectorized_elementwise_kernel4` （在表格中第三行），在 `nativeCUDA` 中执行**向量加法**等等，这才是实际执行加法的部分。同时还有CUDA启动内核操作也耗费时间，CUDA启动内核实际上是CPU执行指令并发送给GPU的过程，**即内核启动耗时**。最后**CUDA设备同步**需要等待GPU完成计算并传回数据，这个阶段同样耗时。仅仅同步这个操作本身就会消耗一定时间。最终我们得到的总时间是：CPU上1.4毫秒，CUDA上17微秒。
 
-可见GPU运行极快，而CPU较慢。观察**CPU耗时**（即自占CPU时间），发现C++接口或C接口（比如 $aten:add$ ）实际消耗了大量CPU时间，这些是向GPU传输数据时产生的开销。这就是加法函数的内部运行机制。
+可见GPU运行极快，而CPU较慢。观察**CPU耗时**（即自占CPU时间），发现C++接口或C接口（比如 `aten:add` ）实际消耗了大量CPU时间，这些是向GPU传输数据时产生的开销。这就是加法函数的内部运行机制。
 
 ### 7.3.3 矩阵乘法
 
@@ -322,7 +313,7 @@ def profiling():
     matmul_profile = profile("matmul", run_operation2(dim=2048, operation=matmul_function))
 ```
 
-矩阵乘法也是类似情况。这里我对A乘以B进行矩阵乘法运算，再次使用2048维矩阵并进行性能分析。此时看到 $aten:matmul$ 调用，这说明底层接口执行矩阵乘法的过程。然后就会调用 $Cutlass$ ,这是英伟达的高性能矩阵乘法CUDA库，随后分派到特定的Cutlass内核，其中包含分块尺寸参数。这实际上指向特定的分块（瓦片）尺寸和线程块数量等参数化配置，正是这些在执行矩阵乘法。同样在底部看到两个熟悉项：内核启动（ $cuLaunchKernel$ ）和CUDA设备同步（ $cudaDeviceSynchronize$ ）。可以再次观察到CPU时间与CUDA时间的分配情况。由于矩阵乘法比向量加法更耗时，CUDA部分占用时间显著增加。
+矩阵乘法也是类似情况。这里我对A乘以B进行矩阵乘法运算，再次使用2048维矩阵并进行性能分析。此时看到 `aten:matmul` 调用，这说明底层接口执行矩阵乘法的过程。然后就会调用 `Cutlass` ,这是英伟达的高性能矩阵乘法CUDA库，随后分派到特定的Cutlass内核，其中包含分块尺寸参数。这实际上指向特定的分块（瓦片）尺寸和线程块数量等参数化配置，正是这些在执行矩阵乘法。同样在底部看到两个熟悉项：内核启动（ `cuLaunchKernel` ）和CUDA设备同步（ `cudaDeviceSynchronize` ）。可以再次观察到CPU时间与CUDA时间的分配情况。**由于矩阵乘法比向量加法更耗时，CUDA部分占用时间显著增加**。
 
 <img src="images/7-5-矩阵乘法的性能分析.png" width="800" alt="7-5-矩阵乘法的性能分析">
 
@@ -348,9 +339,9 @@ def profiling():
 
 你会看到现在它实际上直接执行这个不同的命令，从 `sm80_xmma_gemm_f32f32_f32f32_f32_nn_n_tilesize32x32x8_stage3_warpsize1x2x1_ff` 这一行可以看到和上面的矩阵乘法的不同，它执行的是 `xmma_gemm` 。GEMM是一种矩阵乘法类型。后面跟着f32，即float32。从该内核的命名可以看出实际发生的情况，即这是一种瓦片（分块）的矩阵乘法。它没有经过 `Cutlass` ，而是直接执行这个特定命令。
 
-对于小矩阵乘法，你会看到它现在分派到不同的内核。由此可见矩阵乘法的复杂性。当我们在这种高度抽象层面操作时，我们只把矩阵乘法视为单一事物，比如我们调用A乘以B就完成了。但在底层程序会根据你拥有的维度和硬件，它实际上会分派到完全不同的矩阵乘法原语。这会表现为截然不同的性能特征。一个有趣的技巧是Torch compile，它实际上有一个选项可以在你的硬件上对矩阵乘法性能进行宏观基准测试，然后它会为你的模型选择性能最高的矩阵乘法子程序，过去我发现这能免费带来10%的速度提升。优化这些内容能在现实中带来免费增益。
+**对于小矩阵乘法，我们会看到它现在分派到不同的内核**。由此可见矩阵乘法的复杂性。当我们在这种高度抽象层面操作时，我们只把矩阵乘法视为单一事物，比如我们调用A乘以B就完成了。但在底层程序会根据你拥有的维度和硬件，它实际上会分派到**完全不同的矩阵乘法原语**。这会表现为截然不同的性能特征。一个有趣的技巧是`Torch.compile`（我们后面会讲到） ，它**实际上有一个选项可以在你的硬件上对矩阵乘法性能进行宏观基准测试，然后它会为你的模型选择性能最高的矩阵乘法子程序**，过去我发现这能免费带来10%的速度提升。优化这些内容能在现实中带来免费增益。
 
-性能分析器相比原始基准测试的高级之处在于，我们现在可以看到正在调用哪些CUDA内核。我们可以看到不同大小的矩阵会导致不同的CUDA内核。我们看到 `cutlass_80simtt_sgemm` ，来自Cutlass线性代数库，它告诉我们分块大小等信息。
+性能分析器相比原始基准测试的高级之处在于，我们现在可以看到正在调用哪些CUDA内核。我们可以看到不同大小的矩阵会导致不同的CUDA内核。我们看到 `cutlass_80simtt_sgemm` ，来自`Cutlass`线性代数库，它告诉我们分块大小等信息。
 
 到目前为止，这些操作在某种程度上非常简单。比如矩阵乘法和加法。它们基本是一一对应的：CPU端有一个操作，它就转换为GPU操作直接传输过去。我们可以做一些更加复杂的操作。
 
@@ -370,7 +361,7 @@ def profiling():
     cdist_profile = profile("cdist", run_operation2(dim=2048, operation=cdist_function))
 ```
 
-这个叫torch.cdist的操作，它的作用是**计算两组矩阵之间向量的成对欧几里得距离**。这将是我需要的A和B之间的大型距离矩阵计算，这就是cdist。这是一个更复杂的操作，要计算欧几里得距离需要**计算点积，还需要计算平方根**。
+这个叫`torch.cdist`的操作，它的作用是**计算两组矩阵之间向量的成对欧几里得距离**。这将是我需要的A和B之间的大型距离矩阵计算，这就是cdist。这是一个更复杂的操作，要计算欧几里得距离需要**计算点积，还需要计算平方根**。
 
 <img src="images/7-7-cdist的性能分析.png" width="800" alt="7-7-cdist的性能分析">
 
@@ -414,11 +405,11 @@ def profiling():
     softmax_profile = profile("softmax", run_operation2(dim=2048, operation=softmax_function))
 ```
 
-随后我们再次看到softmax运算。由于这些运算模式会重复出现，将不再逐一展开详细说明。
+随后我们看到softmax运算。由于这些运算模式会重复出现，将不再逐一展开详细说明。
 
 <img src="images/7-9-softmax的性能分析.png" width="800" alt="7-9-softmax的性能分析">
 
-但需要重点强调的精妙之处在于：像softmax和GELU这些核心基础算子都有专门编写的内核实现。这意味着GPU并非在执行基础原语操作，而是通过**融合算子**一次性完成所有计算，完全避免了CPU与GPU之间的来回数据传输（上一章中说到的算子融合操作）。
+但需要重点强调的精妙之处在于：像softmax和GELU这些核心基础算子都有专门编写的内核实现。这意味着GPU并非在执行基础原语操作，而是通过**融合算子**一次性完成所有计算，完全避免了CPU与GPU之间的来回数据传输（上一章中说到的算子融合操作，这章后面还会讲到）。
 
 现在让我们思考一个更复杂的场景。以最初用于基准测试的MLP为例，假设我们需要优化这个MLP使其高速运行。理想情况下我们需要进行精细化的性能分析。
 
@@ -442,9 +433,13 @@ def profiling():
 
 <img src="images/7-12-NsightSystems2.png" width="800" alt="7-12-NsightSystems2">
 
-加载库文件之类的操作非常耗时，光是初始化所有内容就明显花费了7.5秒。然后在GPU上程序运行约7.5秒后才真正开始构建模型。
+加载库文件之类的操作非常耗时，光是初始化所有内容就花费了7.5秒。然后在GPU上程序运行约7.5秒后才真正开始构建模型。
 
 **CPU和GPU之间的协作机制**，其执行模型是这样的：当首次调用PyTorch代码时不会直接执行而是会实时编译代码。像运行时触发的模块加载这类操作，都是为初始化层和计算、将代码片段移入GPU所产生的开销工作，因此非常耗时。
+
+我们可以通过这个工具来看每一步操作cpu和gpu都发生了什么，耗时在哪些操作上。
+
+这个软件操作十分复杂，这里图文难以讲清楚，由于篇幅有限可以移步去看看视频来学习。
 
 ---
 
@@ -469,7 +464,7 @@ def pytorch_gelu(x: torch.Tensor):
 
 这是PyTorch实现的GELU函数，代码如上，调用 `torch.nn.functional.gelu` 时设置 `approximate=tanh` 参数，这是为了与接下来要实现的简单版本保持完全一致。这里实际上并非直接乘以高斯累积分布函数，而是采用更易计算的近似方法。
 
-接下来我要演示最基础的实现方式。
+接下来我要演示手工实现方式。
 
 ```python
 # 手工实现
@@ -523,13 +518,13 @@ pytorch_time = benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pyt
 
 <img src="images/7-15-手动gelu的性能分析.png" width="800" alt="7-15-手动gelu的性能分析">
 
-现在让我们剖析底层运行机制。手工版GeLU会执行大量运算，虽然进行了向量化处理，但这里启动了多个CUDA内核。注意右侧显示该CUDA内核被调用了三次，因为存在大量浮点乘法运算，还包括加法运算和双曲正切计算，其中每个操作都可能产生延迟，最终导致相当大的时间开销。
+现在让我们剖析底层运行机制。手工版GeLU会执行大量运算，虽然进行了向量化处理，但这里启动了多个CUDA内核。**注意右侧显示该CUDA内核被调用了三次，因为存在大量浮点乘法运算，还包括加法运算和双曲正切计算，其中每个操作都可能产生延迟（大部分是通信的开销），最终导致相当大的时间开销**。
 
 <img src="images/7-16-pytorch的gelu的性能分析.png" width="800" alt="7-16-pytorch的gelu的性能分析">
 
-现在观察PyTorch版GELU的实现，只有一次CUDA内核启动就处理了整个任务。这种方式非常非常快，因为它只有一个CUDA内核。
+现在观察PyTorch版GELU的实现，**仅一次CUDA内核启动就处理了整个任务**。这种方式非常非常快，**因为它只启动了一个CUDA内核**。
 
-我们希望能设法直接使用CUDA内核来实现这一点。你可能会想PyTorch团队肯定是用最低层级的语言实现了这个功能，所以我们也应该这样做。但我们不会直接使用最底层的语言，但会使用C++ API，用 C++ 编写 CUDA 内核。
+我们希望能设法直接使用CUDA内核来实现这一点。你可能会想 PyTorch 团队肯定是用最低层级的语言实现了这个功能，所以我们也应该这样做。但我们不会直接使用最底层的语言，但会使用C++ API，用 C++ 编写 CUDA 内核。
 
 ### 7.4.3 使用C++ API编写内核
 
@@ -539,10 +534,9 @@ pytorch_time = benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pyt
 
 每个函数基本上会接收三个参数：块索引（指示属于哪个线程块）、块维度信息以及线程索引。通过这些参数，我们可以确定自己在矩阵或向量中的坐标，从而执行相应的逻辑。
 
-在深入实际C++代码之前还有最后一点，调试CUDA时设置 `CUDA_LAUNCH_BLOCKING=1` 。这样会牺牲一些运行时性能，但能获得错误信息反馈。否则在编写和调试CUDA代码时会非常困难。
 
 ```cpp
-// 文件保存命名为gelu.cu 
+// 文件保存命名为gelu.cu ，C++的CUDA代码
 //下面的python代码会使用 cuda_gelu_src = open("gelu.cu").read() 来调用这段代码
 #include <math.h>
 #include <torch/extension.h>
@@ -553,7 +547,6 @@ pytorch_time = benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pyt
 __global__ void gelu_kernel(float* in, float* out, int num_elements) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < num_elements) {
-        
         out[i] = 0.5 * x * (1.0 + tanh(0.79788456 * (x + 0.044715 * x * x * x)));
     }
 }
@@ -655,6 +648,8 @@ def create_cuda_gelu():
 
 ```
 
+调试CUDA时设置 `CUDA_LAUNCH_BLOCKING=1` 。这样会牺牲一些运行时性能，但能获得错误信息反馈。否则在编写和调试CUDA代码时会非常困难。
+
 接下来就可以使用 `load_inline` 直接加载写好的CUDA gelu代码，然后在Python环境编译一个 python 模块。现在我们已经定义好了CUDA函数，我们可以在Python中直接调用它。我们会使用C绑定来调用这个函数。CUDAgelu的调用已经完成。我可以验证手动实现的gelu和CUDA版本的gelu结果是否一致。
 
 
@@ -750,9 +745,9 @@ block_start = pid * BLOCK_SIZE
 offsets = block_start + tl.arange(0, BLOCK_SIZE)
 ```
 
-上面这三行则是在计算索引。 `block_start = pid * BLOCK_SIZE` 这里是在计算当前块的起始位置，也就是块ID乘以块大小，之后需要知道我在块内的位置，`offsets` 将是偏移量。但请注意一个区别：获取的不是单个偏移量，因为我们不是在编程线程，而是在编程块。这意味实际上我的偏移量是一个向量，而不是单个值。因为这本质上是要进行向量化操作，而向量化操作将由不同线程处理。所以这里 `offsets = block_start + tl.arange(0, BLOCK_SIZE)` 的偏移量是块的起始位置加上一个向量，即这个blocksize偏移范围。也就是说我的偏移量是块内所有这些坐标的集合。
+上面这三行则是在计算索引。 `block_start = pid * BLOCK_SIZE` 这里是在计算当前块的起始位置，也就是块ID乘以块大小，之后需要知道我在块内的位置，`offsets` 将是偏移量。但请注意一个区别：获取的不是单个偏移量，因为我们不是在编程线程，而是在编程块。这意味实际上我的偏移量是一个向量，**而不是单个值**。因为这本质上是要进行向量化操作，而向量化操作将由不同线程处理。所以这里 `offsets = block_start + tl.arange(0, BLOCK_SIZE)` 的偏移量是块的起始位置加上一个向量，即这个blocksize偏移范围。也就是说我的偏移量是块内所有这些坐标的集合。
 
-当然如果在最末端，可能会超出边界，因此我需要一个mask来处理向量边界外的所有情况,即 `mask = offsets < num_elements` 。
+当然如果在最末端，可能会超出边界，因此需要一个mask来处理向量边界外的所有情况,即 `mask = offsets < num_elements` 。
 
 现在，我将通过单次向量化操作一次性加载所有数据， `x = tl.load(x_ptr + offsets, mask=mask)` 。所以x指针加偏移量就是我要处理的数值，经过掩码处理后加载到x中,这是我们需要的内部值，即内部临时向量。
 
@@ -767,7 +762,7 @@ offsets = block_start + tl.arange(0, BLOCK_SIZE)
 
 这里没有tanh函数，所以需要手动计算，这个公式与我们之前使用的完全一致。然后y将是通过上方公式计算的结果。完成计算后，我们需要将其写回输出缓冲区也就是输出向量`tl.store(y_ptr + offsets, y, mask=mask)`。因此计算目标位置就是括号中的y指针加偏移量，还有临时值y和mask。然后进行存储。
 
-这与之前的操作非常非常相似，但这是向量化版本。我们可以一次性操作整个块。所以不同于从线程视角思考，现在是从块的视角思考，但差异并不大。这些都是相当类似的概念。
+这与之前的操作非常非常相似，但这是向量化版本。我们可以一次性操作整个块，所以不同于从线程视角思考，现在是从块的视角思考，但差异并不大。
 
 ### 7.5.2 triton的测试
 
@@ -785,7 +780,7 @@ offsets = block_start + tl.arange(0, BLOCK_SIZE)
 
 <img src="images/7-20-triton的gelu的性能分析2.png" width="800" alt="7-20-triton的gelu的性能分析">
 
-性能分析再次显示，单个内核启动消耗了所有GPU时间。
+性能分析再次显示，单个内核启动消耗了所有GPU时间，这正是我们想要的。
 
 ## 7.6 torch.compil
 
@@ -797,18 +792,19 @@ def pytorch_compilation():
         return
 ```
 
-编写CUDA内核很酷也很有成就感，但或许我们并不需要这么做。我们这里做的操作非常简单，只是将立方和指数运算塞进单个CUDA内核。也许我们不用大费周章就能实现，就是torch.compile，它能够接收未优化的PyTorch代码并生成优化版本。它会尝试自动进行内核融合等优化。这个编译后的gelu在输出结果上与之前等效。
+编写CUDA内核很好，但或许我们并不需要这么做，因为使用工具`torch.compil`就能实现自动优化，我们做的就是将立方和指数运算塞进单个CUDA内核（`compiled_gelu = torch.compile(manual_gelu)`）。`torch.compile`它**能够接收未优化的PyTorch代码并生成优化版本。它会尝试自动进行内核融合等优化。这个编译后的gelu在输出结果上与之前等效**。它实质上是利用PyTorch现有的JIT编译器自动优化代码
 
-<img src="images/7-21-triton的gelu的性能分析2.png" width="800" alt="7-21-triton的gelu的性能分析2">
+<img src="images/7-21-compile的的时间消耗.png" width="800" alt="7-21-compile的的时间消耗">
 
+现在来看运行时间，手动8.1毫秒，PyTorch 1.1毫秒，CUDA 1.8毫秒，而torch.compile仅需 1.47毫秒。
 
-现在来看运行时间，手动8.1，PyTorch1.1，CUDA1.8，而torch.compile仅需1.47。
+<img src="images/7-22-compil的gelu的性能分析.png" width="800" alt="7-22-compil的gelu的性能分析">
 
-关键结论是：现代JIT编译器非常强大，能在无需人工干预的情况下实现操作融合等优化。比我们做的稍更优化。因此它的性能甚至比我们的代码还要稍好一些。所以torch.compile确实很不错。
+关键结论是：现代JIT编译器非常强大，能在无需人工干预的情况下实现操作融合等优化。比我们做的稍更优化。因此它的性能甚至比我们的代码还要稍好一些。所以`torch.compile`确实十分优秀。
 
-什么时候能做得比torch.compile更好，这是关键问题，对于简单操作，比如基础的算子融合，或者它特别擅长的矩阵乘法优化，torch.compile，如果知道矩阵形状就能分配合适的内核，这些方面已经非常出色。很难在这方面做得更好了。但像FlashAttention1、2、3这类优化就相当复杂。如今torch.compile和Jax的XLA编译器确实能实现这些，但这是因为我们事后才明白这些是正确的优化方向。
+什么时候用`torch.compile`是一个关键问题，对于简单操作比如基础的算子融合和阵乘法优化，`torch.compile`如果知道矩阵形状就能分配合适的内核，这些方面它已经非常出色，人工很难在这方面做得更好了。
 
-而且有些优化策略并不容易发现，比如FlashAttention3利用了H100硬件的底层优化，这对JIT编译器来说并不直观，所以确实存在一些torch.compile难以处理，但人工可以优化的场景。
+但像FlashAttention1、2、3这类优化就相当复杂。如今 `torch.compile` 和Jax的XLA编译器确实能实现这些，但这是因为我们事后才明白这些是正确的优化方向。而且有些优化策略并不容易发现，**比如FlashAttention3利用了H100硬件的底层优化，这对JIT编译器来说并不直观，这些就是torch.compile难以处理，但人工可以优化的场景**。
 
-不过核心观点是：不应该想着为每个模块都手写CUDA内核，这很可能浪费时间。但如果你在开发新架构时遇到复杂模块，GPU利用率不理想却认为有优化空间，这时候就值得使用Triton了。
+不过核心观点是：**不用想着为每个模块都手写CUDA内核，因为这很可能是在浪费时间。但如果在开发新架构时遇到复杂模块，GPU利用率不理想却认为有优化空间，这时候就值得使用Triton了**。
 
