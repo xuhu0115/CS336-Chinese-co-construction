@@ -695,6 +695,8 @@ class FastTextClassifier(nn.Module):
 这里的训练文本信息的样本规模较小，模型参数初始化、随机哈希映射以及训练过程中的样本顺序都会引入较强的随机性，`FastText`难以形成稳定有效的判别规则进而导致多次训练结果不一致。
 
 3. **DSIR**
+<img width="920" height="500" alt="a762d043355f251d4db07645b1a5500a" src="https://github.com/user-attachments/assets/0cdd6689-5747-4a81-bffc-5f3923b346ab" />
+
 用低成本的统计特征近似语言分布，通过重要性重采样实现大规模语料的分布对齐，是一种无监督数据选择方法。
 
 -  **目标数据集 $D_p$**
