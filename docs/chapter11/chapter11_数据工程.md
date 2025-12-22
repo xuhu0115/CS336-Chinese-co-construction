@@ -540,9 +540,224 @@ for lang, text in test_data:
 
 ## 11.2.1 数据过滤
 
-当原始数据量很大比如Common Crawl网络数据，而且我们希望既得到高质量信息又保持处理速度时，直接用大型模型并不划算，下面介绍三种高效的数据处理方法：
+当原始数据量很大比如Common Crawl网络数据，而且我们希望既得到高质量信息又保持处理速度时，直接用大型模型并不划算，下面介绍3种高效的数据处理方法：
 
-1. ****
+1. **Kenlm**
+   
+Kneser–Ney平滑是一种常用的`n-gram`平滑方法，能够有效提升语言模型在低频或未见n-gram上的概率估计精度。其核心思想是利用低阶n-gram的分布信息，通过插值与概率重分配对高阶n-gram进行调整，从而缓解零概率问题，并改善长尾 n-gram的估计效果。
+在n-gram模型训练中，通常先使用最大似然估计统计语料，计算每个n-gram中各个`token`的出现频率，并据此估计在给定上下文的下一个token的条件概率。基于这些条件概率可以计算句子的困惑度，困惑度越低表示模型对该句子的预测越可靠。因此，在语料清洗或筛选时，可以优先保留困惑度较低的句子，从而提高训练数据的整体质量。在开源工具方面，KenLM是构建和查询大规模n-gram模型的经典实现。它支持高效的模型训练、查询以及困惑度计算，可用于语料质量评估和筛选。  
+
+>n-gram模型的缺点在于某些n个token的组合在语料中可能极少甚至未出现，从而导致其概率估计不可靠；此外，随着n 的增大，模型需要存储和计算的n-gram数量呈指数增长，面临维度灾难问题。
+
+2. **FastText**
+   
+FastText是一种文本线性分类器，通过对文本进行嵌入和降维，显著减少模型参数并加速计算，同时借助`n-gram词袋`增强文本表示，为避免n-gram数量过大导致的存储和计算开销，采用`哈希映射`进行高效处理。
+
+>FastText处理流程：文本 → n-gram → 哈希桶（索引映射到embdding） → embedding → 平均 → 分类。
+
+**n-gram词袋以及哈希映射解释**
+
+**n-gram是把文本拆成连续的n个词的组合。**
+
+举例文本："I like AI"
+
+- **1-gram**：["I", "like", "AI"]
+- **2-gram**：["I like", "like AI"]
+- **3-gram**：["I like AI"]
+
+**n-gram词袋**就是把这些n-gram当作特征向量，统计它们在文本里出现的次数：
+
+| n-gram    | 出现次数 |
+| --------- | ---- |
+| "I"       | 1    |
+| "like"    | 1    |
+| "AI"      | 1    |
+| "I like"  | 1    |
+| "like AI" | 1    |
+|"I like AI"| 1    |
+
+**每个维度对应一个n-gram。**
+
+当文本很大时，n-gram的数量可能爆炸因为存储每个n-gram非常浪费内存，**哈希映射**的思路是：
+
+- 不存n-gram的完整词表，而是用一个哈希函数把n-gram映射到固定数量的桶（bin）里。
+- 不同的n-gram可能映射到同一个桶即哈希冲突可以接受，LLM仍能学习到规律。
+
+举例假设我们只准备**8个桶（0~7）**，用简单哈希映射：
+
+```python
+n_grams = ["I like", "like AI", "I", "like", "AI"]
+num_bins = 8 
+hashed = [hash(g) % num_bins for g in n_grams]
+print(hashed)  # 可能输出：[3, 1, 4, 2, 7]
+```
+
+>即便不同n-gram即单个token或者连续几个token组成的特征向量映射到同一个桶，也不会影响整体模型学习。
+
+**FastText的关键功能函数**
+```python
+# 词袋n-gram获取函数
+def get_ngrams(tokens, n):
+    """
+    生成n-gram词组，这是FastText捕捉词序的关键。
+    """
+    ngrams = []
+    for i in range(len(tokens)):
+        for j in range(1, n + 1): # 循环生成 1-gram到n-gram
+            if i + j <= len(tokens):
+                # 将词组拼接成字符串，作为特征
+                ngrams.append(" ".join(tokens[i:i + j]))
+    return ngrams
+
+def hash_ngrams(tokens, num_buckets, ngram):
+    """
+    哈希映射
+    """
+    ngrams = get_ngrams(tokens, ngram)
+    # 对每一个生成的特征求hash并取模，得到对应的Embedding索引
+    return torch.tensor([hash(g) % num_buckets for g in ngrams], dtype=torch.long)
+
+def hash_ngrams(tokens, num_buckets, ngram):
+    ngrams = get_ngrams(tokens, ngram)
+    # 使用内置hash并取模，转化为Tensor格式
+    return torch.tensor([hash(g) % num_buckets for g in ngrams], dtype=torch.long)
+
+class TextDataset(Dataset):
+    """
+    数据封装：将原始文本转化为哈希索引序列。
+    """
+    def __init__(self, texts, labels):
+        self.texts = texts
+        self.labels = torch.tensor(labels)
+
+    def __len__(self):
+        return len(self.texts)
+
+    def __getitem__(self, idx):
+        # 预处理：统一转小写并按空格分词
+        tokens = self.texts[idx].lower().split()
+        # 将词和n-gram映射为哈希桶索引
+        hashed_ids = hash_ngrams(tokens, num_buckets, ngram)
+        label = self.labels[idx]
+        return hashed_ids, label
+
+def collate_fn(batch):
+    """
+    整理函数：因为每句话包含的n-gram数量不同，需要对齐长度才能放入Batch训练。
+    """
+    # 找到当前Batch中最长的序列长度
+    max_len = max(len(x[0]) for x in batch)
+    padded = []
+    labels = []
+
+    for hashed_ids, label in batch:
+        # 计算需要填充的长度
+        pad_len = max_len - len(hashed_ids)
+        # 在序列末尾填充0
+        padded_ids = F.pad(hashed_ids, (0, pad_len), value=0)
+        padded.append(padded_ids)
+        labels.append(label)
+    # 堆叠[Batch_Size, Max_Len]形状的张量
+    return torch.stack(padded), torch.tensor(labels)
+
+class FastTextClassifier(nn.Module):
+    def __init__(self, num_buckets, embed_dim, num_classes):
+        super().__init__()
+        # 嵌入层：包含所有哈希桶的词向量矩阵，随机初始化并在训练中学习
+        self.embedding = nn.Embedding(num_buckets, embed_dim)
+        
+        # 全连接层：直接将平均后的嵌入向量映射到类别概率（线性分类）
+        self.fc = nn.Linear(embed_dim, num_classes)
+
+    def forward(self, x):
+        # 查表：[Batch_Size, Seq_Len] -> [Batch_Size, Seq_Len, Embed_Dim]
+        # 将每个哈希索引变成一个特征向量
+        embedded = self.embedding(x)          
+        
+        # 平均池化将句子中所有词和n-gram的向量求平均，得到句子的全局表示
+        # 这种做法忽略了远距离词序，但在文本分类任务中极其高效
+        avg_embedded = embedded.mean(dim=1)   # [Batch_Size, Embed_Dim]
+        
+        # 输出层：计算每个类别的得分 (Logits)
+        logits = self.fc(avg_embedded)        
+        return logits
+```
+
+**完整可运行的[FastText](https://github.com/1iyouzhen/CS336-Chinese-co-construction/blob/main/docs/chapter11/FastText.py)**
+
+输出示例
+>输入文本: I hate this product
+>
+>预测概率: 正面=0.0034, 负面=0.9966
+>
+>预测类别: 负面
+
+这里的训练文本信息的样本规模较小，模型参数初始化、随机哈希映射以及训练过程中的样本顺序都会引入较强的随机性，`FastText`难以形成稳定有效的判别规则进而导致多次训练结果不一致。
+
+3. **DSIR**
+用低成本的统计特征近似语言分布，通过重要性重采样实现大规模语料的分布对齐，是一种无监督数据选择方法。
+
+-  **目标数据集 $D_p$**
+   规模较小但质量高的数据集比如维基百科，用于刻画我们希望语言模型最终学习到的目标分布 $\tilde{p}(x)$ 。
+- **候选数据池 $D_q$ **
+   规模巨大、来源广泛但质量参差不齐的数据集合比如网页抓取文本，近似服从候选分布 $\tilde{q}(x)$ 。
+- **核心目标为重要性重采样**
+   对候选池中的每个样本 $x \in D_q$ ，估计其在目标分布与候选分布下的**近似密度比**
+   
+   $$
+   w(x) = \frac{\tilde{p}(x)}{\tilde{q}(x)}
+   $$
+   
+   $w(x)$ 衡量样本 $x$ 与目标分布的“相似程度”。
+
+   - $w(x)$ 较大：样本在目标分布中较常见，而在候选分布中相对稀有 → **更值得保留**。
+   - $w(x)$ 较小：样本偏离目标分布，或在候选数据中常见 → **降低采样概率或丢弃**。
+
+> **DSIR的本质是：用一个小而干净的数据集告诉我们“什么样的文本是好文本”，再从海量原始数据中按这个标准把这些文本挑出来。**
+
+```python
+import numpy as np
+from collections import Counter
+
+def dsir_main():
+    # 特征构建 - 使用Hashed n-grams
+    training_text = "the cat in the hat" # 模拟目标数据集D_p中的一段文本
+    num_bins = 4  # 哈希桶数量（真实场景中通常为10^4到10^6级别）
+
+    def get_hashed_ngrams(text: str):
+        # 特征提取函数：将文本切分为单词（u-gram），并映射到固定的哈希空间。
+        tokens = text.lower().split()
+        # 对每个单词求哈希值并取模，映射到0~3之间的整数
+        return [hash(token) % num_bins for token in tokens]
+
+    # 获取目标数据D_p的哈希特征索引
+    training_hashed_ngrams = get_hashed_ngrams(training_text)
+    print("目标数据哈希索引(D_p):", training_hashed_ngrams)
+
+    # 分布建模 - 学习概率模型p(x)
+    # 统计每个哈希桶在目标数据中出现的频次
+    counter = Counter(training_hashed_ngrams)
+    total = len(training_hashed_ngrams)
+
+    # 计算p(x)：每个哈希桶对应的概率即频率分布
+    # probs[i]代表第i个哈希桶在目标数据中的权重
+    probs = np.array([counter[i] / total for i in range(num_bins)])
+    print("学习到的目标分布概率 p(x):", probs)
+
+    # 样本评分 - 评估任意句子的概率
+    test_text = "cat" # 假设这是候选池 D_q 中的一个样本
+    hashed_ngrams = get_hashed_ngrams(test_text)
+    print(f"测试文本 '{test_text}' 的哈希索引:", hashed_ngrams)
+
+    # 为避免0概率导致计算崩溃，加入一个极小的平滑项
+    eps = 1e-8
+    # 假设特征之间相互独立（朴素贝叶斯假设），句子的总概率等于各部分概率之积
+    prob = np.prod([probs[x] + eps for x in hashed_ngrams])
+    print(f"文本 '{test_text}' 在目标分布下的估算概率:", prob)
+
+if __name__ == "__main__":
+    dsir_main()
+```
 
 ## 11.2.2 数据去重
 
