@@ -695,8 +695,12 @@ class FastTextClassifier(nn.Module):
 这里的训练文本信息的样本规模较小，模型参数初始化、随机哈希映射以及训练过程中的样本顺序都会引入较强的随机性，`FastText`难以形成稳定有效的判别规则进而导致多次训练结果不一致。
 
 3. **DSIR**
-<img width="920" height="500" alt="a762d043355f251d4db07645b1a5500a" src="https://github.com/user-attachments/assets/0cdd6689-5747-4a81-bffc-5f3923b346ab" />
 
+<div align="center">
+<img width="920" height="500" alt="a762d043355f251d4db07645b1a5500a" src="https://github.com/user-attachments/assets/0cdd6689-5747-4a81-bffc-5f3923b346ab" />
+   <p>图11.8 DSIR处理</p>
+ </div>
+ 
 用低成本的统计特征近似语言分布，通过重要性重采样实现大规模语料的分布对齐，是一种无监督数据选择方法。
 
 -  目标数据集 $D_p$
@@ -761,7 +765,7 @@ if __name__ == "__main__":
 
 **在大规模数据处理中**，`哈希函数`常被用作一种高效的索引映射与特征压缩方法，通过将高维或高基数的离散特征映射到固定大小的哈希空间可以显著降低存储与计算成本，从而提升整体数据处理效率。 需要注意的是，哈希映射不可避免地会产生`哈希冲突`即多个不同特征被映射到同一哈希桶中。但是这种冲突并不会系统性地引入偏差，而是将不同特征的统计量以近似随机的方式混合在一起，因此在统计意义上表现为噪声而非确定性误差。 因此，在实际应用中通常需要在哈希空间规模、存储开销与统计精度之间进行权衡，合理选择哈希函数及桶数量，以在计算效率与建模准确性之间取得折中。
 
-接下来介绍3种去重算法：
+接下来介绍2种去重算法：
 
 1. **精确去重**
 
@@ -789,8 +793,14 @@ if __name__ == "__main__":
     exact_deduplication()
 ```
 
-2. **bloom过滤器**
+2. **[bloom过滤器](https://en.wikipedia.org/wiki/Bloom_filter)**
 
+
+<div align="center">
+<img width="1300" height="500" alt="1e28c640-6bb5-4b43-a6e4-bfd413cc7bf5" src="https://github.com/user-attachments/assets/79682269-46cd-476a-9f0f-6ff2e877847d" />
+   <p>图11.9 Bloom Filter示意图</p>
+ </div>
+ 
 `Bloom Filter`通过哈希函数将对象映射到位数组中并置位，用于判断对象是否曾经出现过。它不存储对象本身，只记录样本的出现痕迹。使用多个哈希函数可以将对象映射到多个位置，查询时需要所有位置都为 1 才判定“出现过”。在大规模数据处理中，这种设计可以显著降低哈希冲突导致的假阳性概率（即把未出现过的对象误判为出现过），而不是为了消除随机性。但在小样本或位数组非常小的情况下，增加哈希函数可能会导致更多位置被提前置1反而增加误判概率，使Bloom Filter的查询正确率下降。
 
 **示例分析：判断单词是否出现过**
@@ -803,34 +813,27 @@ items = ["cat", "dog"]
 
 并准备一个**长度为 8 的位数组**：
 
-```text
-bit_array = [0, 0, 0, 0, 0, 0, 0, 0]
-```
+>bit_array = [0, 0, 0, 0, 0, 0, 0, 0]
 
 使用**两个简单哈希函数**：
 
-```text
-hash1(word) = len(word) % 8
-hash2(word) = (sum(ord(c) for c in word)) % 8
-```
+- hash1(word) = len(word) % 8
+- hash2(word) = (sum(ord(c) for c in word)) % 8
 
 Step1 表示单词 "cat"
 
-- `hash1("cat") = 3 % 8 = 3` → 设置`bit_array[3] = 1`
-- `hash2("cat") = (99+97+116) % 8 = 312 % 8 = 0` → 设置`bit_array[0] = 1`
+- hash1("cat") = 3 % 8 = 3 → 设置`bit_array[3] = 1`
+- hash2("cat") = (99+97+116) % 8 = 312 % 8 = 0 → 设置`bit_array[0] = 1`
 
-```text
-bit_array = [1, 0, 0, 1, 0, 0, 0, 0]
-```
+>bit_array = [1, 0, 0, 1, 0, 0, 0, 0]
 
 Step2 表示单词 "dog"
 
-- `hash1("dog") = 3 % 8 = 3` → `bit_array[3]` 已经是1，不变
-- `hash2("dog") = (100+111+103) % 8 = 314 % 8 = 2` → 设置`bit_array[2] = 1`
+- hash1("dog") = 3 % 8 = 3 → `bit_array[3]` 已经是1，不变
+- hash2("dog") = (100+111+103) % 8 = 314 % 8 = 2 → 设置`bit_array[2] = 1`
 
-```text
-bit_array = [1, 0, 1, 1, 0, 0, 0, 0]
-```
+>bit_array = [1, 0, 1, 1, 0, 0, 0, 0]
+
 
 Step3 查询新单词 "bird"
 
@@ -859,8 +862,11 @@ Step4 查询另一个新单词"god"
 
 **数据评估与大模型记忆行为**
 
+<div align="center">
 <img width="700" height="700" alt="e9981713965cccdd76759239af379a5b" src="https://github.com/user-attachments/assets/44b41dd6-c0c0-4adf-9c73-368a6e1bb863" />
-
+   <p>图11.10 数据评估大模型记忆行为</p>
+ </div>
+ 
 在最新的[LLM数据评估研究](https://arxiv.org/abs/2503.12072)中，针对大语言模型训练数据透明度不足的问题，信息引导探针提出了一种无需访问模型内部权重或输出概率分布的高效“黑盒”审计方法。该方法基于`香农信息论`：
 
 $$
