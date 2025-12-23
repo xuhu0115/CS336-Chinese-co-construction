@@ -699,18 +699,12 @@ class FastTextClassifier(nn.Module):
 
 用低成本的统计特征近似语言分布，通过重要性重采样实现大规模语料的分布对齐，是一种无监督数据选择方法。
 
--  **目标数据集 $D_p$**
+-  目标数据集 $D_p$
    规模较小但质量高的数据集比如维基百科，用于刻画我们希望语言模型最终学习到的目标分布 $\tilde{p}(x)$ 。
-- **候选数据池 $D_q$ **
+-  候选数据池 $D_q$ 
    规模巨大、来源广泛但质量参差不齐的数据集合比如网页抓取文本，近似服从候选分布 $\tilde{q}(x)$ 。
 - **核心目标为重要性重采样**
-   对候选池中的每个样本 $x \in D_q$ ，估计其在目标分布与候选分布下的**近似密度比**
-   
-   $$
-   w(x) = \frac{\tilde{p}(x)}{\tilde{q}(x)}
-   $$
-   
-   $w(x)$ 衡量样本 $x$ 与目标分布的“相似程度”。
+   对候选池中的每个样本 $x \in D_q$ ，估计其在目标分布与候选分布下的近似密度比 $w(x) = \frac{\tilde{p}(x)}{\tilde{q}(x)}$  ，其中 $w(x)$ 衡量样本 $x$ 与目标分布的“相似程度”。
 
    - $w(x)$ 较大：样本在目标分布中较常见，而在候选分布中相对稀有 → **更值得保留**。
    - $w(x)$ 较小：样本偏离目标分布，或在候选数据中常见 → **降低采样概率或丢弃**。
@@ -720,52 +714,139 @@ class FastTextClassifier(nn.Module):
 ```python
 import numpy as np
 from collections import Counter
+def dsir_main(n):
+    # n: n-gram 的大小
+    # 特征构建 - Hashed n-grams
+    training_text = "the cat in the hat"  # 模拟目标数据集D_p
+    num_bins = 4  # 哈希桶数量（真实场景中通常 1e4 ~ 1e6）
 
-def dsir_main():
-    # 特征构建 - 使用Hashed n-grams
-    training_text = "the cat in the hat" # 模拟目标数据集D_p中的一段文本
-    num_bins = 4  # 哈希桶数量（真实场景中通常为10^4到10^6级别）
-
-    def get_hashed_ngrams(text: str):
-        # 特征提取函数：将文本切分为单词（u-gram），并映射到固定的哈希空间。
+    def get_hashed_ngrams(text: str, n: int):
+        #将文本转换为 n-gram，并映射到固定哈希空间
         tokens = text.lower().split()
-        # 对每个单词求哈希值并取模，映射到0~3之间的整数
-        return [hash(token) % num_bins for token in tokens]
 
-    # 获取目标数据D_p的哈希特征索引
-    training_hashed_ngrams = get_hashed_ngrams(training_text)
-    print("目标数据哈希索引(D_p):", training_hashed_ngrams)
-
-    # 分布建模 - 学习概率模型p(x)
-    # 统计每个哈希桶在目标数据中出现的频次
+        # 构造 n-grams
+        ngrams = [
+            " ".join(tokens[i:i+n])
+            for i in range(len(tokens) - n + 1)
+        ]
+        # 哈希映射到 [0, num_bins)
+        return [hash(ngram) % num_bins for ngram in ngrams]
+    # 目标数据D_p的特征
+    training_hashed_ngrams = get_hashed_ngrams(training_text, n)
+    print(f"目标数据哈希索引 D_p (n={n}):", training_hashed_ngrams)
+    # 分布建模 - 估计p_hat
     counter = Counter(training_hashed_ngrams)
     total = len(training_hashed_ngrams)
-
-    # 计算p(x)：每个哈希桶对应的概率即频率分布
-    # probs[i]代表第i个哈希桶在目标数据中的权重
     probs = np.array([counter[i] / total for i in range(num_bins)])
-    print("学习到的目标分布概率 p(x):", probs)
+    print("学习到的目标分布 p_hat:", probs)
 
-    # 样本评分 - 评估任意句子的概率
-    test_text = "cat" # 假设这是候选池 D_q 中的一个样本
-    hashed_ngrams = get_hashed_ngrams(test_text)
+    # 样本评分 - 候选数据D_q
+    test_text = "the cat"
+    hashed_ngrams = get_hashed_ngrams(test_text, n)
     print(f"测试文本 '{test_text}' 的哈希索引:", hashed_ngrams)
-
-    # 为避免0概率导致计算崩溃，加入一个极小的平滑项
     eps = 1e-8
-    # 假设特征之间相互独立（朴素贝叶斯假设），句子的总概率等于各部分概率之积
     prob = np.prod([probs[x] + eps for x in hashed_ngrams])
     print(f"文本 '{test_text}' 在目标分布下的估算概率:", prob)
-
 if __name__ == "__main__":
-    dsir_main()
+    # 默认 n=1（unigram）
+    dsir_main(n=1)
+    print("\n--- 使用 2-gram ---")
+    dsir_main(n=2)
 ```
 
+>由于代码中的目标数据规模极小，且哈希映射本身存在随机性，该示例处于DSIR（通常适用于大规模样本）的极端小样本退化情形，多次运行可能产生不同的结果。因此示例中给出的概率数值本身并不具有实际统计意义，仅用于说明 DSIR 的计算流程。
+
 ## 11.2.2 数据去重
+在大规模语言模型的数据工程中，原始语料通常需要经过系统性的去重处理。[Google研究团队的工作](https://arxiv.org/pdf/2202.06539)指出大规模训练原始的数据中普遍存在大量重复或近重复文本，而高频重复样本会使模型更容易产生“机械记忆”，降低其对语言规律的泛化学习能力，并带来潜在的隐私风险。因此，去除重复数据有助于引导模型从“死记硬背”转向对统计模式和结构性知识的真正学习。[进一步的研究表明](https://arxiv.org/pdf/2107.06499)，在相同甚至更低的训练计算量下，使用去重后的数据进行训练，模型在困惑度指标上表现更好或至少不下降，说明数据去重能够有效提升模型的训练效率与泛化能力。
 
-## 11.2.3 数据相似度
+**在大规模数据处理中**，`哈希函数`常被用作一种高效的索引映射与特征压缩方法，通过将高维或高基数的离散特征映射到固定大小的哈希空间可以显著降低存储与计算成本，从而提升整体数据处理效率。 需要注意的是，哈希映射不可避免地会产生`哈希冲突`即多个不同特征被映射到同一哈希桶中。但是这种冲突并不会系统性地引入偏差，而是将不同特征的统计量以近似随机的方式混合在一起，因此在统计意义上表现为噪声而非确定性误差。 因此，在实际应用中通常需要在哈希空间规模、存储开销与统计精度之间进行权衡，合理选择哈希函数及桶数量，以在计算效率与建模准确性之间取得折中。
 
-# 11.3 数据相关研究
+接下来介绍3种去重算法：
+
+1. **精确去重**
+
+精确去重基于完全一致的匹配原则，即对每一个数据样本（如一条文本）计算一个确定性的标识符（例如字符串本身或其哈希值），并通过比较标识符是否相同来判断样本是否完全一致（例如“hi”和“hi”会得到相同的标识）。
+对于具有相同标识的样本仅保留其中一个，其余样本被移除。该方法实现简单、计算效率高，能够有效消除完全重复的数据样本，但无法识别语义相同或高度相似的重复内容例如轻微改写、格式变化或局部修改的文本。
+```python
+import mmh3
+def exact_deduplication():
+    # 原始数据
+    items = ["Hello", "hello", "hello there", "hello", "hi", "bye", "🤔", "🤔"]
+    print("原始数据:")
+    print(items)
+
+    # 使用哈希进行精确去重
+    seen_hashes = set()
+    deduped_items = []
+    for item in items:
+        h = mmh3.hash(item)
+        if h not in seen_hashes:
+            seen_hashes.add(h)
+            deduped_items.append(item)
+    print("\n去重处理以后:")
+    print(deduped_items)
+if __name__ == "__main__":
+    exact_deduplication()
+```
+
+2. **bloom过滤器**
+
+`Bloom Filter`通过哈希函数将对象映射到位数组中并置位，用于判断对象是否曾经出现过。它不存储对象本身，只记录样本的出现痕迹。使用多个哈希函数可以将对象映射到多个位置，查询时需要所有位置都为 1 才判定“出现过”。在大规模数据处理中，这种设计可以显著降低哈希冲突导致的假阳性概率（即把未出现过的对象误判为出现过），而不是为了消除随机性。但在小样本或位数组非常小的情况下，增加哈希函数可能会导致更多位置被提前置1反而增加误判概率，使Bloom Filter的查询正确率下降。
+
+**示例分析：判断单词是否出现过**
+
+假设我们有一组单词：
+
+```text
+items = ["cat", "dog"]
+```
+
+并准备一个**长度为 8 的位数组**：
+
+```text
+bit_array = [0, 0, 0, 0, 0, 0, 0, 0]
+```
+
+使用**两个简单哈希函数**：
+
+```text
+hash1(word) = len(word) % 8
+hash2(word) = (sum(ord(c) for c in word)) % 8
+```
+
+Step1 表示单词 "cat"
+
+- `hash1("cat") = 3 % 8 = 3` → 设置`bit_array[3] = 1`
+- `hash2("cat") = (99+97+116) % 8 = 312 % 8 = 0` → 设置`bit_array[0] = 1`
+
+```text
+bit_array = [1, 0, 0, 1, 0, 0, 0, 0]
+```
+
+Step2 表示单词 "dog"
+
+- `hash1("dog") = 3 % 8 = 3` → `bit_array[3]` 已经是1，不变
+- `hash2("dog") = (100+111+103) % 8 = 314 % 8 = 2` → 设置`bit_array[2] = 1`
+
+```text
+bit_array = [1, 0, 1, 1, 0, 0, 0, 0]
+```
+
+Step3 查询新单词 "bird"
+
+- hash1("bird") = 4 % 8 = 4 → 查询`bit_array[4] = 0`
+- hash2("bird") = (98+105+114+100) % 8 = 417 % 8 = 1 → 查询`bit_array[1] = 0`
+
+>由于**至少有一个位置为0**，Bloom Filter可以确定"bird"**一定没出现过**，这是“一票否决”特性。
+
+Step4 查询另一个新单词"god"
+
+- hash1("god") = 3 % 8 = 3 → 查询`bit_array[3] = 1`
+- hash2("god") = (103+111+100) % 8 = 314 % 8 = 2 → 查询`bit_array[2] = 1`
+
+> 两个位置都为1则Bloom Filter判断"god"**可能出现过**，但实际上"god"并未出现在items = ["cat", "dog"]中，这也就是**假阳性**（误判）。
+
+*可以运行的代码[Bloom Filter简化实现示例](https://github.com/1iyouzhen/CS336-Chinese-co-construction/blob/main/docs/chapter11/bloom%20Filter%E7%AE%80%E5%8C%96%E5%AE%9E%E7%8E%B0)。*
 
 **训练数据安全**
 
@@ -802,7 +883,9 @@ $$
 
 # 思考
 
+1）虽然对优质数据有概念，但尚未具体讨论其实际形态，比如优质文档应该具备什么特征？
 
+2）如何从语义层面对数据进行去重处理？
 
 # 参考文献
 - [Google研究团队的数据工作](https://arxiv.org/pdf/2202.06539)
