@@ -765,7 +765,7 @@ if __name__ == "__main__":
 
 **在大规模数据处理中**，`哈希函数`常被用作一种高效的索引映射与特征压缩方法，通过将高维或高基数的离散特征映射到固定大小的哈希空间可以显著降低存储与计算成本，从而提升整体数据处理效率。 需要注意的是，哈希映射不可避免地会产生`哈希冲突`即多个不同特征被映射到同一哈希桶中。但是这种冲突并不会系统性地引入偏差，而是将不同特征的统计量以近似随机的方式混合在一起，因此在统计意义上表现为噪声而非确定性误差。 因此，在实际应用中通常需要在哈希空间规模、存储开销与统计精度之间进行权衡，合理选择哈希函数及桶数量，以在计算效率与建模准确性之间取得折中。
 
-接下来介绍2种去重算法：
+接下来介绍3种去重算法：
 
 1. **精确去重**
 
@@ -851,6 +851,156 @@ Step4 查询另一个新单词"god"
 
 *可以运行的代码[Bloom Filter简化实现示例](https://github.com/1iyouzhen/CS336-Chinese-co-construction/blob/main/docs/chapter11/bloom%20Filter%E7%AE%80%E5%8C%96%E5%AE%9E%E7%8E%B0)。*
 
+3. **局部敏感哈希（LSH）**
+
+LSH的核心目标是：**在大规模文本集合中，快速找出相似文档，而无需对所有文档两两计算相似度**，整个流程可以拆成三个核心步骤：
+
+**Step1 特征提取从文本到集合**
+
+为了计算相似度，我们首先需要把文本量化为集合`k-Shingling`：
+
+  - 将文本切分为长度为k的连续片段，例如文本`"今天天气很好"`的分为连续两个词为一组`{"今天", "天天", "天气", "气很", "很好"}`。
+   - **原理**：如果两个文本相似，它们会共享很多相同的词组。
+   - **数学表示**：
+      文档A → 集合 $S_A$ ，文档B → 集合 $S_B$ ，相似度衡量**Jaccard相似度**。
+     
+      Jaccard 相似度定义为：
+      
+      $$
+      J(A,B) = \frac{|S_A ∩ S_B|}{|S_A ∪ S_B|}
+      $$
+      
+      它衡量两个集合的重叠程度，取值范围为 [0, 1]。
+
+
+**Step2 MinHash降维生成签名**
+
+当处理的集合太大、直接比较效率低时，可以生成“MinHash签名”来代替原集合。MinHash签名是将文本经过k-shingling得到的元素集合，通过多个哈希函数映射成一个固定长度的数字向量，每个数字对应集合在该哈希下的最小值，用来近似表示文本的相似度。**每个shingle元素代表文本的一小段内容**，因此MinHash签名实际上是文本的“指纹向量”。
+
+>核心特性:两个集合的MinHash值相等的概率 ≈ 它们的Jaccard相似度
+
+
+1). **随机排列**，将所有可能的词项随机排序。
+
+2). **取最小值**，对集合 $S$ 中的词项，找到在随机排列中序号最小的那个元素，它的序号或哈希值就是MinHash值。
+
+3). **生成“签名向量”**，使用 $n$ 个不同随机排列（或不同哈希函数），得到长度为 $n$ 的签名向量：
+
+   $$
+   \text{Signature}(S) = [h_1(S), h_2(S), ..., h_n(S)]
+   $$
+
+> 优点：比较两个长度为100的签名向量相较于比较10万词集合快得多。
+
+**Step3 LSH分桶过滤**
+
+即便有了“签名向量”，如果文档数百万两两比较仍然很慢LSH用**分桶策略**进一步加速。
+
+**核心思想**：
+将“签名向量”切分为 $b$ 个**band组**，每band包含 $r$ 行。
+规则：**只要两个文档在任意一个band中完全一致，就将它们投入同一个“桶”**，成为候选相似对。
+
+假设两个文档对应集合的Jaccard相似度为 $s$ 。根据MinHash的性质任意一个哈希函数在两个文档上的取值相等的概率为 $s$ ，将MinHash签名划分为 $b$ 个 band，每个band包含 $r$ 行则：
+
+1). 一个band全匹配的概率： $P_\text{band} = s^r$ .
+
+2). 一个band不匹配的概率： $1 - s^r$ .
+   
+3). 所有b个band都不匹配的概率： $(1 - s^r)^b$ .
+   
+4). **至少有一个band匹配的概率（候选相似对）**： $P_\text{collision} = 1 - (1 - s^r)^b$ .
+
+LSH中band级别的匹配概率，用的不是一个新的相似度，而是整体相似度 $s$ 的概率。这里的不同band之间的匹配事件是相互独立，这些公式描述了LSH中典型的S型碰撞概率曲线，用于区分高相似度与低相似度文档。
+
+> 这就是LSH的**S型曲线**效果：
+>
+> - **低相似度文档**：几乎不碰撞。
+> - **高相似度文档**：碰撞概率接近1。
+
+**调整阈值**
+
+<div align="center">
+<img width="980" height="570" alt="e889511fe4daec6ca7e9af605bb311e6" src="https://github.com/user-attachments/assets/ec47a2fb-dc47-4d9c-9598-6b9452921fd9" />
+   <p>图11.10 bank与相似度关系</p>
+ </div>
+ 
+- **增加r** :提高单个band的全匹配门槛，使只有高相似度文档才可能发生碰撞，阈值右移。
+- **增加b** ：增加发生碰撞的“尝试次数”，使较低相似度文档也可能成为候选，阈值左移。
+
+**三步分工合作**
+
+| 阶段            | 解决的问题          | 核心代价                 |
+| ------------- | -------------- | -------------------- |
+| **特征提取** | 文本 → 数学集合      | 空间占用大                |
+| **MinHash**   | 压缩集合，保持相似度     | 估计误差                 |
+| **LSH**       | 避免全量对比，实现亚线性搜索 | 少量漏检 |
+
+> **特征提取构建集合，MinHash压缩集合，LSH快速筛选候选相似对**。
+
+
+```python
+import mmh3
+from typing import List, Set
+
+# 文本 → k-Shingling
+def text_to_set(text: str, k=2) :
+    """
+    k-shingling，将文本转为集合
+    """
+    return {text[i:i+k] for i in range(len(text) - k + 1)}
+
+def jaccard(A: Set[str], B: Set[str]):
+    return len(A & B) / len(A | B)
+
+# 示例文本
+text1 = "今天天气真好，我很想出去散步"
+text2 = "今天天气很好，我想去散步"
+A = text_to_set(text1)
+B = text_to_set(text2)
+print("真实Jaccard相似度:", jaccard(A, B))
+
+# MinHash
+def minhash_signature(S: Set[str], n_hash: int):
+    """
+    为集合生成MinHash签名
+    """
+    sig = []
+    for seed in range(n_hash):
+        sig.append(min(mmh3.hash(x, seed) for x in S))
+    return sig
+
+# 参数
+b = 30
+r = 2
+n_hash = b * r
+sigA = minhash_signature(A, n_hash)
+sigB = minhash_signature(B, n_hash)
+
+# LSH Band切分+exact match
+def lsh_candidate(sigA, sigB, b, r) -> bool:
+    """
+    判断两个签名是否在LSH中成为候选对
+    """
+    for i in range(b):
+        start = i * r
+        end = start + r
+        bandA = sigA[start:end]
+        bandB = sigB[start:end]
+
+        # band级别exact match
+        if bandA == bandB:
+            print(f"命中band:{i}")
+            return True
+    return False
+
+is_candidate = lsh_candidate(sigA, sigB, b, r)
+print("是否成为LSH候选相似对:", is_candidate)
+# “是否成为LSH候选相似对”就是两个文档通过LSH过滤器后，是否需要进入精确相似度计算阶段。
+```   
+
+在大规模数据处理中，LSH可以快速筛选相似文档。
+
+# 11.3 数据相关研究
 **训练数据安全**
 
 这项由Claude创始人Anthropic与英国人工智能安全研究所等机构进行的[最新研究](https://www.pcgamer.com/software/ai/anthropic-reveals-that-as-few-as-250-malicious-documents-are-all-it-takes-to-poison-an-llms-training-data-regardless-of-model-size)揭示了大型语言模型（LLM）在数据安全方面的脆弱性：**“模型中毒”门槛远低于预期**。研究发现，无论模型规模或训练数据量大小，仅需**250份恶意文档**即可在模型中植入“后门”漏洞。这意味着恶意行为者无需控制大规模数据，只需通过植入特定触发词如胡言乱语或隐藏指令，就能在模型输出中引发错误或建立窃取敏感数据的通道。**这一发现强调了在LLM训练阶段对数据来源进行严格审计和防御性过滤的极端重要性。**
@@ -864,7 +1014,7 @@ Step4 查询另一个新单词"god"
 
 <div align="center">
 <img width="700" height="700" alt="e9981713965cccdd76759239af379a5b" src="https://github.com/user-attachments/assets/44b41dd6-c0c0-4adf-9c73-368a6e1bb863" />
-   <p>图11.10 数据评估大模型记忆行为</p>
+   <p>图11.11 数据评估大模型记忆行为</p>
  </div>
  
 在最新的[LLM数据评估研究](https://arxiv.org/abs/2503.12072)中，针对大语言模型训练数据透明度不足的问题，信息引导探针提出了一种无需访问模型内部权重或输出概率分布的高效“黑盒”审计方法。该方法基于`香农信息论`：
@@ -896,3 +1046,4 @@ $$
 # 参考文献
 - [Google研究团队的数据工作](https://arxiv.org/pdf/2202.06539)
 - [去重数据用于训练的优点](https://arxiv.org/pdf/2107.06499)
+- [LSH数据去重](http://infolab.stanford.edu/~ullman/mmds/ch3n.pdf)
