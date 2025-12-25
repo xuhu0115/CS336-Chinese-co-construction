@@ -119,10 +119,10 @@ OpenAI 在[《Scaling Laws for Neural Language Models》](https://arxiv.org/abs/
 
 下图展示了误差从 Best Guess Error（最佳猜测误差）到不可约误差。
 
-<center class="half">
+<div align="center">
     <img src="images/9-4-幂律学习曲线示意图.png" width="500"/>
     <p>图9.8 神经机器翻译学习曲线</p>
-</center>
+</div>
 
 - 在最佳猜测误差，此时模型的表现等同于“瞎猜”（比如在分类任务中，总是预测出现频率最高的那个类别）。在这个阶段，增加少量数据对性能几乎没有帮助；
 - 在幂律阶段，数据量的指数级增加会带来误差的线性下降。只要在这个区域内，堆数据就能稳定地提升效果；
@@ -132,10 +132,10 @@ OpenAI 在[《Scaling Laws for Neural Language Models》](https://arxiv.org/abs/
 
 我们主要关注的是从幂律区域（Power-law Region）到不可约误差区域，它能帮助我们判断当前模型是处于“缺数据”的状态（第二阶段），还是已经触碰到了“天花板”（第三阶段）。
 
-<center class="half">
+<div align="center">
     <img src="images/9-9-数据大小与模型误差之间的幂律关系.png" width="500"/>
     <p>图9.9 数据大小与模型误差之间的幂律关系</p>
-</center>
+</div>
 
 一个经验性的观察是，在x轴上绘制数据集大小，在y轴上绘制模型误差（Test Loss）。在双对数坐标系（log-log plot）上，它们呈现出线性关系。在数学上，双对数图上的直线意味着两个变量之间存在 **幂律（Power Law）** 关系。
 
@@ -165,10 +165,10 @@ $$\mathbb{E}[(\hat{\mu} - \mu)^2] = \frac{\sigma^2}{n}$$
 
 经典统计模型（如线性回归）的误差衰减速率通常是 $1/n$（即 $\alpha=1$）。但神经网络的缩放指数通常要小得多，在不同的任务中，查看缩放的斜率。机器翻译中是-0.13，语音是 -0.3，语言模型是 -0.095。这些比 $1/n^\alpha$ 的速率慢得多。为什么呢？
 
-<center class="half">
+<div align="center">
     <img src="images/9-10-三种不同任务的缩放指数.png" width="500"/>
     <p>图9.10 三种不同任务的缩放指数</p>
-</center>
+</div>
 
 神经网络是非参数模型，可以拟合任意复杂函数。对于一个 $d$ 维空间中的非参数学习问题，其误差衰减速率近似为 $n^{-1/d}$。这意味着，**缩放定律的指数 $\alpha$ 反映了数据流形的“内在维度”**。指数越小，意味着任务的内在维度越高，学习难度越大。
 
@@ -200,10 +200,10 @@ $$\mathbb{E}[(\hat{\mu} - \mu)^2] = \frac{\sigma^2}{n}$$
 
 [Bahri 等人 (2021) 的研究](https://arxiv.org/pdf/2102.06701)，试图通过实验数据来证明：**Scaling Law 的斜率 $\alpha$ 确实是由数据的内在维度 $d$ 决定的。**
 
-<center class="half">
+<div align="center">
     <img src="images/9-11-维度与scaling laws斜率之间的关系.png" width="500"/>
     <p>图9.11 维度与 scaling laws 斜率之间的关系</p>
-</center>
+</div>
 
 图中的**粉色点** (Teacher-Student)是人工合成的数据。可以看到它们完美地落在了一条直线上（黑色虚线）。这证明了在理论控制的实验中，Scaling Law 的斜率确实严格由维度决定。**其他颜色点 **(Real Datasets) 代表真实世界的图像数据集（如 CIFAR-10, MNIST）。有趣的是，它们也大致排列在直线上（虽然有些偏离，落在灰色虚线附近）。
 
@@ -218,17 +218,17 @@ $$\mathbb{E}[(\hat{\mu} - \mu)^2] = \frac{\sigma^2}{n}$$
 
 在 [OpenAI 的 Scaling Laws 原论文](https://arxiv.org/pdf/2001.08361)中也发现，数据集的组成只影响偏移量（即，y=kx+b中的b），不影响斜率。这意味这，如果你想选择一个好的数据集，不一定非要在超大规模下训练你的模型，可以将模型缩小，在小得多的模型上进行数据选择实验。
 
-<center class="half">
+<div align="center">
     <img src="images/9-12-数据组成只影响偏移量.png" width="500"/>
     <p>图9.12 数据组成只影响偏移量</p>
-</center>
+</div>
 
 Hashimoto 2021 在 [Model Performance Scaling with Multiple Data Sources](https://proceedings.mlr.press/v139/hashimoto21a/hashimoto21a.pdf) 论文中，系统研究了数据的构成（Data Composition）如何影响缩放定律。
 
-<center class="half">
+<div align="center">
     <img src="images/9-13-数据混合比例如何影响缩放定律.png" width="500"/>
     <p>图9.13 数据混合比例如何影响缩放定律</p>
-</center>
+</div>
 
 左图三条线代表三种不同的数据混合比例 $q$（例如 $q=0$ 代表全用数据源 A，$q=0.56$ 代表混合了数据源 B）。无论 $q$ 是多少，这三条线的**斜率（Slope）是一样的**。这意味着，无论你怎么混合数据，模型随着数据量增加而变强的**速率（Rate）**是不变的（即指数 $\alpha$ 不变）。虽然斜率一样，但线条的**高低位置（截距 Intercept）**不同。橙色线（$q=0.22$）明显比蓝色线（$q=0.00$）要低。这意味着在相同的数据量下，**更好的数据配比能带来更低的误差**。
 
@@ -244,10 +244,10 @@ Hashimoto 2021 在 [Model Performance Scaling with Multiple Data Sources](https:
 
 通常的 Scaling Laws 假设我们有无限的、不重复的新数据。但实际上，数据是有限的。出自[Scaling Data-Constrained Language Models](https://arxiv.org/pdf/2305.16264)论文的这张图展示了重复训练数据（多轮 Epochs）带来的收益递减效应。
 
-<center class="half">
+<div align="center">
     <img src="images/9-14-重复数据与新数据对模型性能的影响.png" width="500"/>
     <p>图9.14 重复数据与新数据对模型性能的影响</p>
-</center>
+</div>
 
 左图的横轴虚线表示理想情况。假设“重复的数据”价值等同于“全新的数据”，如果这样，Loss 会一直线性下降。实线表示现实情况，可以看到这条线逐渐变平，不再下降。
 
@@ -269,10 +269,10 @@ $$ D' = U_D + U_D R_D^* (1 - e^{\frac{-R_D}{R_D^*}}) $$
 
 如果要在大数据环境下进行数据选择，重复10次wiki 和 包含新的数据，哪一种会更好？下面这项来自于 CMU 的研究，本质上是**在重复使用数据与选择质量较低的新数据之间进行权衡**。
 
-<center class="half">
+<div align="center">
     <img src="images/9-15-大数据下的数据选择策略.png" width="500"/>
     <p>图9.15 大数据下的数据选择策略</p>
-</center>
+</div>
 
 图中将数据质量分成了不同等级的“池子”（Pools），E是最高，
 D, C, A, B, F：质量依次递减。右图的绿线(Bucket E only)只用最高质量数据；蓝线 (E+D)混合了次优数据；红/黄线 (E+D+C)：混合了更多普通数据。
@@ -299,24 +299,24 @@ D, C, A, B, F：质量依次递减。右图的绿线(Bucket E only)只用最高�
 
 训练一系列不同大小的 Transformer 和 LSTM 模型，绘制它们的性能-参数曲线。
 
-<center class="half">
+<div align="center">
     <img src="images/9-16-不同参数规模下Transformer 和 LSTM 性能的对比.png" width="500"/>
     <p>图9.16 不同参数规模下Transformer 和 LSTM 性能的对比</p>
-</center>
+</div>
 
 Transformer 的曲线始终在 LSTM 的下方，且存在一个恒定的偏移。在对数坐标系中，这意味着 Transformer 在同等参数量下，比 LSTM 的计算效率高出一个常数倍。
 
-<center class="half">
+<div align="center">
     <img src="images/9-17-不同模型及架构的计算-性能（FLOPs vs 性能）图.png" width="500"/>
     <p>图9.17 不同模型及架构的计算-性能（FLOPs vs 性能）图</p>
-</center>
+</div>
 
 在 [Scaling Laws vs Model Architectures: How does Inductive Bias Influence Scaling?](https://arxiv.org/pdf/2207.10551) 研究中，不交了标准 Transformer 与各种 Transformer 变体的负对数困惑度。
 
-<center class="half">
+<div align="center">
     <img src="images/9-18-Transformer 及其各种变体的计算量与性能之间的关系.png" width="500"/>
     <p>图9.18 Transformer 及其各种变体的计算量与性能之间的关系</p>
-</center>
+</div>
 
 绿色点代表标准的 Transformer，红色点代表 Transformer 架构的特定变体或配置。标签（如 Mini, Small, Base, Large, XL）表示模型的大小（参数量）
 
@@ -328,10 +328,10 @@ Transformer 的曲线始终在 LSTM 的下方，且存在一个恒定的偏移�
 
 同样的方法可以用于比较优化器。[实验表明](https://arxiv.org/pdf/1712.00409)，Adam 通常比 SGD 具有更好的缩放特性（即曲线更低）。
 
-<center class="half">
+<div align="center">
     <img src="images/9-19-优化器对比.png" width="500"/>
     <p>图9.19 优化器对比</p>
-</center>
+</div>
 
 > RHN是 Recurrent Highway Nets，循环高速网络
 
@@ -339,19 +339,19 @@ Transformer 的曲线始终在 LSTM 的下方，且存在一个恒定的偏移�
 
 一般认为，层数越深，效果会显著提升。但从[右图](https://arxiv.org/pdf/2001.08361)可以看出，从 1 层增加到 2 层会带来巨大性能提升。超过一定层数后，继续增加深度带来的收益会递减。
 
-<center class="half">
+<div align="center">
     <img src="images/9-20-layers数量对模型性能的影响.png" width="500"/>
     <p>图9.20 layers数量对模型性能的影响</p>
-</center>
+</div>
 
 需要注意的是，并不是所有参数得到的 scaling law 都是一样的！如果把 embedding 参数当做模型的一部分，得到的 scaling law 会非常不同（如左图）。呈现出来的不是线性关系。
 
 下图中，中间图的横坐标是宽度与深度的比值，不仅有不同大小的模型，还有不同的宽度/深度比值。在不同的横坐标，曲线的形状相似。可以看到在10~100之间表现最优。
 
-<center class="half">
+<div align="center">
     <img src="images/9-21-模型的宽度和深度对性能的影响.png" width="500"/>
     <p>图9.21 模型的宽度和深度对性能的影响</p>
-</center>
+</div>
 
 前馈层比例 (Feed-Forward Ratio) $d_{ff} / d_{model}$，这是 Transformer 内部 MLP 层（前馈网络）的宽度与模型隐藏层维度（Embedding size）的比例。在 $10^0$ (1) 到 $10^1$ (10) 之间，曲线几乎是平的。这意味着，这个比例设为 2、4 还是 8，对模型效果几乎没影响。只有当你把它设得特别大（比如 >10），模型参数都浪费在 MLP 上了，效果才会变差。
 
@@ -363,26 +363,26 @@ Transformer 的曲线始终在 LSTM 的下方，且存在一个恒定的偏移�
 
 noise scale：在 batch 内随机采样时，你所预期的梯度噪声
 
-<center class="half">
+<div align="center">
     <img src="images/9-22-批量大小与临界值.png" width="500"/>
     <p>图9.22 批量大小与临界值</p>
-</center>
+</div>
 
 当批量大小小于临界值时，增大批量大小能有效降低梯度噪声，训练速度近似线性提升（Perfect Scaling）。当批量大小超过临界值时，收益迅速递减（Ineffective Scaling）。
 
-<center class="half">
+<div align="center">
     <img src="images/9-23-临界批量大小与模型性能.png" width="500"/>
     <p>图9.23 临界批量大小与模型性能</p>
-</center>
+</div>
 
 当你尝试降低损失，也就是图形从左向右移动（横坐标是 10->6->4->3），critical batch size 会变大，相应的，整体的 batch size 就会更大。
 
 所以，目标损失越小，可以使用的整体batch size 就越大。
 
-<center class="half">
+<div align="center">
     <img src="images/9-24-选择最优的批量大小.png" width="500"/>
     <p>图9.24 选择最优的批量大小</p>
-</center>
+</div>
 
 随着计算量和模型规模的增加，我们应该如何扩展训练规模？
 
@@ -395,17 +395,17 @@ noise scale：在 batch 内随机采样时，你所预期的梯度噪声
 
 [μP (Maximal Update Parametrization)](https://arxiv.org/pdf/2203.03466) 这项工作（右图），通过一种特殊的参数化和初始化方案（尺度感知初始化），可以使得最优学习率在不同模型规模下保持稳定。这意味着你可以在小模型上找到最优学习率，然后直接将其用于训练万亿参数的大模型，无需重新调整。
 
-<center class="half">
+<div align="center">
     <img src="images/9-25-标准做法与μP的改进.png" width="500"/>
     <p>图9.25 标准做法与μP的改进</p>
-</center>
+</div>
 
 下面的[表格](https://arxiv.org/pdf/2304.06875)展示了如何实现 $\mu$P。核心思想是根据模型的宽度变化比例 $r$ 来调整初始化和学习率。
 
-<center class="half">
+<div align="center">
     <img src="images/9-26-μP的不同实现.png" width="500"/>
     <p>图9.26 μP的不同实现</p>
-</center>
+</div>
 
 假设我们要把模型 $M$ 放大到 $M'$，宽度扩大了 $r$ 倍：
 *   **AdamW Learning Rate (matrix-like)**: 对于矩阵类的参数（如 Transformer 中的权重矩阵），学习率需要**除以 $r$** ($l/r$)。这是最关键的一步，通常意味着大模型的学习率要比小模型小。
@@ -417,10 +417,10 @@ noise scale：在 batch 内随机采样时，你所预期的梯度噪声
 
 ### 12.3.4 scaling 在不同的下游任务上表现不同
 
-<center class="half">
+<div align="center">
     <img src="images/9-27-scaling 在不同的下游任务上表现不同.png" width="500"/>
     <p>图9.27 scaling 在不同的下游任务上表现不同</p>
-</center>
+</div>
 
 左图，横坐标是计算量，纵坐标是困惑度，采用的都是log对数的形式。呈现出很好的相关性。
 
@@ -457,10 +457,10 @@ noise scale：在 batch 内随机采样时，你所预期的梯度噪声
 
 下图展示的是，在绿色的小数据和小模型上训练，再扩展到红色的大数据和大模型上训练：
 
-<center class="half">
+<div align="center">
     <img src="images/9-28-参数_计算_数据的联合缩放.png" width="500"/>
     <p>图9.28 参数_计算_数据的联合缩放</p>
-</center>
+</div>
 
 横轴是参数量，颜色代表计算量，数据量是第三个轴。
 
