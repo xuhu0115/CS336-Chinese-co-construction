@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 class Linear(nn.Module):
     def __init__(self, d_in: int, d_out: int):
-        """A linear layer initialized with truncated normal fan-in fan-out.
+        """使用截断正态分布fan-in fan-out初始化的线性层。
 
         Args:
             d_in: int
-                The number of input features.
+                输入特征的数量。
             d_out: int
-                The number of output features.
+                输出特征的数量。
         """
         
         super().__init__()
@@ -62,17 +62,17 @@ class Embedding(nn.Module):
 
 class RMSNorm(nn.Module):
     """
-    This module implements root mean square layer normalization, as
-    described in Eq. 4 of https://arxiv.org/abs/1910.07467
+    此模块实现根均方层归一化，如
+    https://arxiv.org/abs/1910.07467 中方程4所述
 
     Args:
         hidden_size: int
-            Dimensionality of the input to normalize.
-        eps: float, default is 1e-5
-            A value added to the denominator for numerical stability.
+            要归一化的输入维度。
+        eps: float, 默认值为1e-5
+            为数值稳定性添加到分母中的值。
 
     Returns:
-        FloatTensor of same shape as input.
+        与输入相同形状的FloatTensor。
     """
 
     def __init__(
@@ -89,14 +89,14 @@ class RMSNorm(nn.Module):
         """
         Args:
             x: FloatTensor of shape `(batch_size, *)`.
-                The input to apply root mean square layer normalization on.
+                要应用根均方层归一化的输入。
 
         Returns:
-            FloatTensor of same shape as input
+            与输入相同形状的FloatTensor
         """
-        # NOTE: in practice, many implementations will
-        # manually upcast the input to fp32 here to prevent overflow when you
-        # square the input.
+        # 注意：在实际中，许多实现会
+        # 在此处手动将输入转换为fp32，以防止在
+        # 平方输入时发生溢出。
         # https://github.com/pytorch/pytorch/issues/66707
         in_dtype = x.dtype
 
@@ -140,7 +140,7 @@ class RotaryEmbedding(nn.Module):
         # einx
         cos, sin = einx.get_at('cos_sin [pos] half_dim, ... -> cos_sin ... half_dim', self._freq_cis_cache, pos_ids)
 
-        # 2D rotation matrix applied to pairs in x
+        # 应用于x中对的2D旋转矩阵
         x1_rot = cos * x1 - sin * x2
         x2_rot = sin * x1 + cos * x2
         result = einx.rearrange('... x_half, ... x_half -> ... (x_half (1 + 1))', x1_rot, x2_rot).contiguous()
@@ -151,28 +151,28 @@ class RotaryEmbedding(nn.Module):
 
 
 class BasicsTransformerLM(nn.Module):
-    """A Transformer language model.
+    """一个Transformer语言模型。
 
     Args:
         vocab_size: int
-            The number of unique items in the output vocabulary to be predicted.
+            输出词汇表中要预测的唯一项目数量。
         context_length: int,
-            The maximum number of tokens to process at once.
+            一次处理的最大token数量。
         d_model: int
-            The dimensionality of the model embeddings and sublayer outputs.
+            模型嵌入和子层输出的维度。
         num_layers: int
-            The number of Transformer layers to use.
+            要使用的Transformer层数。
         num_heads: int
-            Number of heads to use in multi-headed attention. `d_model` must be
-            evenly divisible by `num_heads`.
+            多头注意力中使用的头数。`d_model`必须
+            能被`num_heads`整除。
         d_ff: int
-            Dimensionality of the feed-forward inner layer (section 3.3).
+            前馈内层（3.3节）的维度。
         rope_theta: float
-            The theta value for the RoPE positional encoding.
+            RoPE位置编码的theta值。
 
     Returns:
-        FloatTensor of shape (batch size, sequence_length, vocab_size) with the
-        predicted unnormalized next-word distribution for each token.
+        形状为（batch size, sequence_length, vocab_size）的FloatTensor，包含每个token的
+        预测非标准化下一个词分布。
     """
 
     def __init__(
@@ -185,7 +185,7 @@ class BasicsTransformerLM(nn.Module):
         d_ff: int,
         rope_theta: float,
     ):
-        # Store the model configuration for serialization / deserialization
+        # 存储模型配置以用于序列化/反序列化
         self.config = {
             k: v for k, v in locals().items() if k != "self" and not (k.startswith("__") and k.endswith("__"))
         }
@@ -214,13 +214,13 @@ class BasicsTransformerLM(nn.Module):
         self.ln_final = RMSNorm(d_model)
         self.lm_head = Linear(d_model, vocab_size)
 
-        # report number of parameters
+        # 报告参数数量
         logger.info(f"number of non-embedding parameters: {self.get_num_params() / 1e6:.2f}M")
 
     def get_num_params(self, non_embedding=True):
         """
-        Return the number of parameters in the model.
-        For non-embedding count (default), the lm_head parameters get subtracted.
+        返回模型中参数的数量。
+        对于非嵌入计数（默认），会减去lm_head参数。
         """
         n_params = sum(p.numel() for p in self.parameters())
         if non_embedding:
@@ -231,11 +231,11 @@ class BasicsTransformerLM(nn.Module):
     def forward(self, x: Int[Tensor, " ... sequence_length"]) -> Float[Tensor, " ... sequence_length vocab_size"]:
         """
         Args:
-            x: Input IDs for language modeling.
+            x: 用于语言建模的输入ID。
 
-        Returns: A FloatTensor of shape
-            (batch size, sequence_length, vocab_size) with the predicted unnormalized next-word
-            distribution for each token.
+        Returns: 形状为
+            (batch size, sequence_length, vocab_size)的FloatTensor，包含每个token的预测非标准化下一个词
+            分布。
         """
         _, sequence_length = x.size()
 
@@ -264,45 +264,45 @@ class BasicsTransformerLM(nn.Module):
         """
         Args:
             x: LongTensor of shape `(1, sequence_length,)` or `(sequence_length, )`.
-                Input IDs to condition on when generating.
+                生成时用于条件化的输入ID。
             max_new_tokens: int
-                Maximum number of tokens to generate.
+                要生成的最大token数量。
             temperature: float
-                Temperature to use during generation.
+                生成期间使用的温度。
             top_k: int
-                If provided, only sample from the `top_k` vocab items (by probability).
+                如果提供，仅从`top_k`词汇项目（按概率）中采样。
             eos_token_id: int
-                If provided, stop generation when we generate this ID.
+                如果提供，在生成此ID时停止生成。
 
-        Returns: A LongTensor of shape (max_new_tokens,) with the generated model output.
+        Returns: 形状为(max_new_tokens,)的LongTensor，包含生成的模型输出。
         """
         if x.dim() == 1:
             x = x.unsqueeze(0)
             
         original_sequence_length = x.size(-1)
         for _ in range(max_new_tokens):
-            # Take the last `context_length` tokens if the input is
-            # beyond the model's context length
+            # 如果输入超过模型的上下文长度，
+            # 取最后的`context_length`个token
             x = x[:, -self.context_length :] if x.size(1) > self.context_length else x
-            # Get the logits from the model
+            # 从模型获取logits
             logits = self.forward(x)
-            # Take the logits for the next token
+            # 获取下一个token的logits
             next_token_logits = logits[:, -1]
-            # apply temperature scaling
+            # 应用温度缩放
             temperature_scaled_next_token_logits = next_token_logits / temperature
-            # If top-k is provided, take the tokens with the highest score
+            # 如果提供了top-k，选择得分最高的token
             if top_k:
                 topk_values, _ = torch.topk(
                     temperature_scaled_next_token_logits,
                     min(top_k, temperature_scaled_next_token_logits.size(-1)),
                 )
-                # Get the score of the kth item that we kept---items with lower scores should be masked.
+                # 获取我们保留的第k个项目的分数——得分较低的项应该被遮蔽。
                 threshold = topk_values[:, -1]
                 topk_mask = temperature_scaled_next_token_logits < threshold
                 temperature_scaled_next_token_logits.masked_fill(topk_mask, float("-inf"))
             next_token_probabilities = softmax(temperature_scaled_next_token_logits, dim=-1)
             next_token_id = torch.multinomial(next_token_probabilities, 1)
-            # End generation if we see the EOS token ID
+            # 如果我们看到EOS token ID，结束生成
             if eos_token_id is not None and next_token_id.item() == eos_token_id:
                 break
             x = torch.cat((x, next_token_id), dim=-1)
@@ -318,7 +318,7 @@ class BasicsTransformerLM(nn.Module):
         weights_path = os.path.join(pretrained_model_path, "model.pt")
         state_dict = torch.load(weights_path)
 
-        # Remove _orig_mod. prefix that comes from serializing a compiled model
+        # 移除来自序列化编译模型的_orig_mod.前缀
         unwanted_prefix = "_orig_mod."
         for k, _ in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
@@ -328,24 +328,24 @@ class BasicsTransformerLM(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    """A single Transformer layer.
+    """单个Transformer层。
 
-    This implements a single layer of the Transformer, as described in section 3.1
-    of the paper.
+    此实现Transformer的单个层，如论文3.1节
+    所述。
 
     Args:
         d_model: int
-            The dimensionality of the model embeddings and sublayer outputs.
+            模型嵌入和子层输出的维度。
         num_heads: int
-            Number of heads to use in multi-headed attention. `d_model` must be
-            evenly divisible by `num_heads`.
+            多头注意力中使用的头数。`d_model`必须
+            能被`num_heads`整除。
         d_ff: int
-            Dimensionality of the feed-forward inner layer (section 3.3).
+            前馈内层（3.3节）的维度。
         positional_encoder: RotaryEmbedding
-            The RoPE module to use.
+            要使用的RoPE模块。
 
     Returns:
-        FloatTensor of shape `(batch_size, sequence_length, d_model)`.
+        形状为`(batch_size, sequence_length, d_model)`的FloatTensor。
     """
 
     def __init__(
@@ -369,18 +369,18 @@ class TransformerBlock(nn.Module):
         """
         Args:
             x: FloatTensor of shape `(batch_size, sequence_length, d_model)`.
-                The input to process with the Transformer block.
+                用Transformer块处理的输入。
 
         Returns:
-            FloatTensor of shape `(batch_size, sequence_length, d_model)`.
+            形状为`(batch_size, sequence_length, d_model)`的FloatTensor。
         """
-        # NOTE: this is a pre-norm Transformer, and differs from the original
-        # description in the paper.
-        # Apply the multi-head self-attention sublayer
+        # 注意：这是一个pre-norm Transformer，与论文中的原始
+        # 描述不同。
+        # 应用多头自注意力子层
         x_attn = self.attn(self.ln1(x))
         attn_sublayer_output = x + x_attn
 
-        # Apply the feed-forward sublayer
+        # 应用前馈子层
         x_ffn = self.ffn(self.ln2(attn_sublayer_output))
         ffn_sublayer_output = attn_sublayer_output + x_ffn
         return ffn_sublayer_output
@@ -403,22 +403,22 @@ def scaled_dot_product_attention(
     V: Float[Tensor, " ... keys    d_v"],
     mask: Bool[Tensor, " ... queries keys"] | None = None,
 ) -> Float[Tensor, " ... queries d_v"]:
-    """Scaled dot-product attention.
+    """缩放点积注意力。
 
-    This function implements Eq. 1 of the Transformer paper.
+    此函数实现了Transformer论文中的公式1。
 
     Args:
-        Q: Tensor of queries, may have any number of leading dimensions.
-        K: Tensor of keys, sharing leading dimensions with Q.
-        V: Tensor of values, sharding leading dimensions with Q and K.
-        mask: An (optional) mask of shape (..., seq_len, seq_len).
-            Attention scores for positions with a mask value of `False` should
-            be masked out, i.e., not affect the softmaxed attention probabilities.
+        Q: 查询张量，可以有任意数量的前导维度。
+        K: 键张量，与Q共享前导维度。
+        V: 值张量，与Q和K共享前导维度。
+        mask: 一个（可选的）形状为(..., seq_len, seq_len)的掩码。
+            对于掩码值为`False`的位置，注意力分数应该
+            被屏蔽，即不影响softmax后的注意力概率。
 
     Returns:
         torch.FloatTensor of shape (..., seq_len, value_dimension)
-        with the output of running your scaled dot product attention
-        implementation with the provided key, query, and value tensors.
+        使用提供的键、查询和值张量运行缩放点积注意力
+        实现的输出。
     """
 
     d_k = K.shape[-1]
@@ -427,30 +427,29 @@ def scaled_dot_product_attention(
     if mask is not None:
         attention_scores = torch.where(mask, attention_scores, float("-inf"))
 
-    attention_weights = softmax(attention_scores, dim=-1)  # Softmax over the key dimension
+    attention_weights = softmax(attention_scores, dim=-1)  # 在键维度上应用softmax
 
     return einsum(attention_weights, V, "... query key, ... key d_v ->  ... query d_v")
 
 
 class CausalMultiHeadSelfAttention(nn.Module):
-    """Multi-Head Self-Attention
+    """多头自注意力
 
-    This function implements section 3.2.2 of the Transformer paper. In particular,
-    given an input tensor of shape `(batch_size, sequence_length, d_model)`, we project
-    it to create queries, keys, and values, and then perform causal multi-headed attention with
-    those queries, keys, and values.
+    此函数实现了Transformer论文的3.2.2节。特别是，
+    给定形状为`(batch_size, sequence_length, d_model)`的输入张量，我们投影
+    它以创建查询、键和值，然后对这些查询、键和值执行因果多头注意力。
 
     Args:
         d_model: int
-            The dimensionality of the model embeddings and sublayer outputs.
+            模型嵌入和子层输出的维度。
         num_heads: int
-            Number of heads to use in multi-headed attention. `d_model` must be
-            evenly divisible by `num_heads`.
+            多头注意力中使用的头数。`d_model`必须
+            能被`num_heads`整除。
         positional_encoder: RotaryEmbedding
-            The RoPE module to use.
+            要使用的RoPE模块。
 
     Returns:
-        Tensor of shape `(batch_size, sequence_length, d_model)`.
+        形状为`(batch_size, sequence_length, d_model)`的张量。
     """
 
     def __init__(
@@ -473,16 +472,16 @@ class CausalMultiHeadSelfAttention(nn.Module):
 
         self.output_proj = Linear(self.num_heads * self.d_v, self.d_model)
 
-        self.positional_encoder = positional_encoder  # RoPE
+        self.positional_encoder = positional_encoder  # RoPE位置编码
 
     def forward(self, x: Float[Tensor, " ... seq d_k"], token_positions: Int[Tensor, " ... seq"] | None = None) -> Float[Tensor, " ... seq d_v"]:
         """
         Args:
-            x: The input to perform multi-headed self-attention on.
-            positional_ids: The positional indices along the sequence dimension of the input embeddings.
+            x: 执行多头自注意力的输入。
+            positional_ids: 输入嵌入沿序列维度的位置索引。
 
         Returns:
-            Self-attention outputs.
+            自注意力输出。
         """
         *b, sequence_length, d_model = x.size()
         assert d_model == self.d_model
@@ -491,7 +490,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
         K = self.k_proj(x)
         V = self.v_proj(x)
 
-        # Take apart each head from the embedding dimension of Q, K, V to shape (..., num_heads, seq_len, d_k).
+        # 从Q、K、V的嵌入维度中分解每个头，形状为(..., num_heads, seq_len, d_k)。
         Q, K, V = (
             rearrange(X, "... seq (heads d) -> ... heads seq d", heads=self.num_heads)
             for X in (Q, K, V)
@@ -500,26 +499,26 @@ class CausalMultiHeadSelfAttention(nn.Module):
         if token_positions is None:
             token_positions = einx.rearrange("seq -> b... seq", torch.arange(sequence_length, device=x.device), b=[1] * len(b))
 
-        # Duplicate token positions for each head
+        # 为每个头复制token位置
         token_positions = rearrange(token_positions, "... seq -> ... 1 seq")
 
         Q = self.positional_encoder(Q, token_positions)
         K = self.positional_encoder(K, token_positions)
 
-        # Construct causal mask
+        # 构造因果掩码
         seq = torch.arange(sequence_length, device=x.device)
         qi = einx.rearrange('query -> b... 1 query 1', seq, b=[1] * len(b))
         kj = einx.rearrange('key   -> b... 1 1   key', seq, b=[1] * len(b))
         causal_mask = qi >= kj  # (query, key)
 
-        # Shape: (..., num_heads, sequence_length, d_k)
+        # 形状: (..., num_heads, sequence_length, d_k)
         attn_output = scaled_dot_product_attention(K=K, Q=Q, V=V, mask=causal_mask)
 
-        # Concatenate the attention output from all heads.
-        # (..., sequence_length, num_heads * d_v).
+        # 连接所有头的注意力输出。
+        # (..., sequence_length, num_heads * d_v)。
         attn_output = rearrange(attn_output, "batch heads seq d_v -> batch seq (heads d_v)").contiguous()
 
-        # Apply the output projection
+        # 应用输出投影
         output = self.output_proj(attn_output)
         return output
 

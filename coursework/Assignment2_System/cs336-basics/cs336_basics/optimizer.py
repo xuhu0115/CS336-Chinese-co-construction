@@ -13,14 +13,14 @@ def get_cosine_lr(
     warmup_iters: int,
     cosine_cycle_iters: int,
 ):
-    """Cosine with warmup learning rate scheduler."""
-    # First, we linearly warmup for warmup_iters steps.
+    """带预热的余弦学习率调度器。"""
+    # 首先，我们为 warmup_iters 步进行线性预热。
     if it < warmup_iters:
         return max_learning_rate * it / warmup_iters
-    # Then, if it > cosine_cycle_iters, we return min learning rate.
+    # 然后，如果 it > cosine_cycle_iters，我们返回最小学习率。
     if it > cosine_cycle_iters:
         return min_learning_rate
-    # Else, we use cosine decay down to min learning rate.
+    # 否则，我们使用余弦衰减到最小学习率。
     decay_ratio = (it - warmup_iters) / (cosine_cycle_iters - warmup_iters)
     assert 0 <= decay_ratio <= 1
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
@@ -37,13 +37,13 @@ class AdamW(torch.optim.Optimizer):
         weight_decay: float = 0.01,
     ):
         if not 0.0 <= lr:
-            raise ValueError(f"Invalid learning rate: {lr}")
+            raise ValueError(f"无效的学习率: {lr}")
         if not 0.0 <= eps:
-            raise ValueError(f"Invalid epsilon value: {eps}")
+            raise ValueError(f"无效的epsilon值: {eps}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
+            raise ValueError(f"索引0处的beta参数无效: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
+            raise ValueError(f"索引1处的beta参数无效: {betas[1]}")
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super().__init__(params, defaults)
 
@@ -56,12 +56,12 @@ class AdamW(torch.optim.Optimizer):
                 if p.grad is None:
                     continue
 
-                # Can either apply weight decay here, or at the very end
+                # 可以在此处应用权重衰减，也可以在最后应用
                 # p.data.mul_(1 - group['lr'] * group['weight_decay'])
 
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError("Adam does not support sparse gradients")
+                    raise RuntimeError("Adam不支持稀疏梯度")
 
                 state = self.state[p]
                 alpha = group["lr"]
@@ -76,7 +76,7 @@ class AdamW(torch.optim.Optimizer):
 
                 alpha_t = alpha * (math.sqrt(1 - (beta_2**t)) / (1 - (beta_1**t)))
                 p.data -= alpha_t * m_t / (torch.sqrt(v_t) + eps)
-                # Apply weight decay
+                # 应用权重衰减
                 p.data -= alpha * group["weight_decay"] * p.data
 
                 state["m"] = m_t
