@@ -156,5 +156,5 @@ A3: 编辑get train data.py文件中__main__里面的build_random_data_bin()函�
         output_bin="data.bin",
         target_samples=填写一个整数
     )
-建议：得到文本生成尽可能好的模型建议考虑缩放定律，抽取样本数量时考虑`模型总参数x(大概100~200倍)=训练总token数量`）.
+建议：得到文本生成尽可能好的模型建议考虑缩放定律，抽取样本数量时可以考虑`模型总参数x(20左右)=训练总token数量`）.
 ```
