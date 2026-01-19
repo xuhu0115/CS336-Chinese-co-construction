@@ -478,7 +478,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
         """
         Args:
             x: 执行多头自注意力的输入。
-            positional_ids: 输入嵌入沿序列维度的位置索引。
+            token_positions: 输入嵌入沿序列维度的位置索引。
 
         Returns:
             自注意力输出。
