@@ -1,0 +1,66 @@
+{
+    "name": "data_collection",
+    "dataset_name": "data_collection",
+    "dataset_pretty_name": "",
+    "dataset_description": "",
+    "model_name": "gpt2",
+    "score": 0.0,
+    "metrics": [
+        {
+            "name": "acc",
+            "num": 10,
+            "score": 0.0,
+            "macro_score": 0.0,
+            "categories": [
+                {
+                    "name": [
+                        "reasoning_index",
+                        "logic"
+                    ],
+                    "num": 6,
+                    "score": 0.0,
+                    "macro_score": 0.0,
+                    "subsets": [
+                        {
+                            "name": "arc/ARC-Easy",
+                            "score": 0.0,
+                            "num": 2
+                        },
+                        {
+                            "name": "ceval/logic",
+                            "score": 0.0,
+                            "num": 4
+                        }
+                    ]
+                },
+                {
+                    "name": [
+                        "reasoning_index",
+                        "math"
+                    ],
+                    "num": 4,
+                    "score": 0.0,
+                    "macro_score": 0.0,
+                    "subsets": [
+                        {
+                            "name": "aime25/AIME2025-I",
+                            "score": 0.0,
+                            "num": 1
+                        },
+                        {
+                            "name": "aime25/AIME2025-II",
+                            "score": 0.0,
+                            "num": 1
+                        },
+                        {
+                            "name": "gsm8k/main",
+                            "score": 0.0,
+                            "num": 2
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "analysis": "N/A"
+}
