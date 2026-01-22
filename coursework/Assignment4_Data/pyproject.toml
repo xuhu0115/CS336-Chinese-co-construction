@@ -19,6 +19,8 @@ dependencies = [
     "nltk>=3.9.1",
     "fastwarc>=0.15.2",
     "tldextract>=5.3.0",
+    "ipykernel>=7.1.0",
+    "warcio>=1.7.5",
 ]
 
 [tool.setuptools.packages.find]
