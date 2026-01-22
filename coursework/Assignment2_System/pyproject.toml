@@ -1,10 +1,24 @@
+[project]
+name = "assignment2-system"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "einops>=0.8.1",
+    "einx>=0.3.0",
+    "ipykernel>=7.1.0",
+    "jaxtyping>=0.3.5",
+    "torch>=2.9.1",
+    "wandb>=0.24.0",
+]
+
 [build-system]
-requires = ["setuptools>=64", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[project]
-name = "cs336_basics"
-version = "0.1.0"
+[tool.setuptools]
+package-dir = {"" = "src"}
 
-[tool.setuptools.packages]
-find = {}                          # 或者显式写 packages = ["cs336_basics"]
+[tool.setuptools.packages.find]
+where = ["src"]

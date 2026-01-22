@@ -1,7 +1,10 @@
 # CS336 2025年春季学期作业2：系统
 
 有关作业的完整描述，请参见作业文档
-[cs336_spring2025_assignment2_systems.pdf](./cs336_spring2025_assignment2_systems.pdf)
+[cs336_spring2025_assignment2_systems.pdf](./相关文档/cs336_spring2025_assignment2_systems.pdf)
+
+翻译后的中文文档：
+[【翻译】cs336_spring2025_assignment2_systems.pdf](./相关文档/【翻译】cs336_spring2025_assignment2_systems.pdf)
 
 如果您发现作业文档或代码中存在任何问题，请随时提出GitHub issue或提交修复的pull request。
 
@@ -9,7 +12,8 @@
 
 本目录组织结构如下：
 
-- [`./cs336-basics`](./cs336-basics)：包含模块`cs336_basics`及其相关`pyproject.toml`的目录。该模块包含了作业1中语言模型的官方实现。如果您想使用自己的实现，可以将此目录替换为您自己的实现。
+- [`./Assignment2_System/相关文档`](Assignment2_System/相关文档) 里面是作业二的官方文档，作者将他们使用ai翻译和ai导读，里面包含原件。
+- [`./src/cs336_basics`](./cs336-basics)：包含模块`cs336_basics`及其相关`pyproject.toml`的目录。该模块包含了作业1中语言模型的官方实现。如果您想使用自己的实现，可以将此目录替换为您自己的实现。
 - [`./cs336_systems`](./cs336_systems)：此文件夹基本上是空的！这是您将实现优化后的Transformer语言模型的模块。您可以随意从作业1（位于`cs336-basics`）中获取所需的代码并复制过来作为起点。此外，您还将在本模块中实现分布式训练和优化。
 
 直观来看，目录结构应类似于：
@@ -27,9 +31,31 @@
 └── ... TODO(你)：作业2所需的其他文件或文件夹 ...
 ```
 
+其中我们供读者跑通基础作业：
+只需运行`cs336_systems/作业1.ipynb`和`cs336_systems/作业2.ipynb`就可以跑通流程，其他文件都是这两个文件生成的，不需要理会。
+
+
+## 使用uv创建自己的环境
+
+整个作业使用**linux**进行，读者可以使用**windows的wsl**来在windows中跑通作业（作业一.ipynb中有教学。
+
+本次作业是关于GPU和分布式训练的，如果有多个GPU就可以跑通，只有一个GPU也可以，但是就没有分布式训练的速度优势，但是作为教学学习是足够的
+
 如果您想使用自己作业1的实现，请将`cs336-basics`目录替换为您自己的实现，或编辑外层`pyproject.toml`文件以指向您自己的实现。
 
-0. 我们使用`uv`管理依赖项。您可以通过运行以下命令来验证`cs336-basics`包中的代码是否可访问：
+### 创建环境
+
+
+```bash
+uv sync
+uv run
+```
+
+
+
+
+
+我们使用`uv`管理依赖项。您可以通过运行以下命令来验证`cs336-basics`包中的代码是否可访问：
 
 ```sh
 $ uv run python
@@ -45,6 +71,8 @@ Python 3.12.10 (main, Apr  9 2025, 04:03:51) [Clang 20.1.0 ] on linux
 ```
 
 `uv run`会根据`pyproject.toml`文件自动安装依赖项。
+
+
 
 ## 提交作业
 
