@@ -1,0 +1,50 @@
+[project]
+name = "cs336-data"
+version = "1.0.0"
+description = "CS336 Assignment 4 - Data Quality"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy<2.0",
+    "cs336-basics",
+    "torch~=2.7.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch~=2.2.2; sys_platform == 'darwin' and platform_machine == 'x86_64'", # Intel Macs
+    "tqdm>=4.67.1",
+    "wandb>=0.19.7",
+    "pytest>=8.3.5",
+    "xopen>=2.0.2",
+    "resiliparse>=0.15.2",
+    "fasttext>=0.9.3",
+    "mmh3>=5.1.0",
+    "nltk>=3.9.1",
+    "fastwarc>=0.15.2",
+    "tldextract>=5.3.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["cs336_data", "tests"]
+
+[tool.uv]
+package = true
+python-preference = "managed"
+
+[tool.uv.sources]
+cs336-basics = { path = "./cs336-basics", editable = true }
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "WARNING"
+addopts = "-s"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint.extend-per-file-ignores]
+# Also ignore `E402` in all `__init__.py` files.
+"__init__.py" = ["E402", "F401", "F403", "E501"]
+
+[tool.ruff.lint]
+extend-select = ["UP"]
+ignore = [
+    "F722"
+]
