@@ -10,6 +10,7 @@ dependencies = [
     "ipykernel>=7.1.0",
     "jaxtyping>=0.3.5",
     "torch>=2.9.1",
+    "torchvision>=0.24.1",
     "wandb>=0.24.0",
 ]
 
