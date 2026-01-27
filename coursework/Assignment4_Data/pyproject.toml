@@ -24,7 +24,6 @@ dependencies = [
     "langdetect>=1.0.9",
     "bs4>=0.0.2",
     "lxml>=6.0.2",
-    "mwxml>=0.3.6",
 ]
 
 [tool.setuptools.packages.find]

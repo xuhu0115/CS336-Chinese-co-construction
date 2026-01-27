@@ -23,6 +23,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+extracted/
 .Python
 build/
 develop-eggs/
