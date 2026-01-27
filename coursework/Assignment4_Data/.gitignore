@@ -8,6 +8,11 @@ data/
 # big dataset
 
 *.gz
+*.bin
+*.txt
+*.json
+*.jsonl
+*.bz2
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

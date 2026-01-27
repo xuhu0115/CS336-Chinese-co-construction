@@ -22,6 +22,9 @@ dependencies = [
     "ipykernel>=7.1.0",
     "warcio>=1.7.5",
     "langdetect>=1.0.9",
+    "bs4>=0.0.2",
+    "lxml>=6.0.2",
+    "mwxml>=0.3.6",
 ]
 
 [tool.setuptools.packages.find]
