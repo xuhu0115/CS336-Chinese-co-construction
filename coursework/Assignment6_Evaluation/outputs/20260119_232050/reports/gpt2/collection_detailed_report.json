@@ -1,0 +1,116 @@
+{
+  "subset_level": [
+    {
+      "task_type": "",
+      "dataset_name": "ceval",
+      "subset_name": "logic",
+      "micro_avg.": 0.0,
+      "count": 4
+    },
+    {
+      "task_type": "",
+      "dataset_name": "arc",
+      "subset_name": "ARC-Easy",
+      "micro_avg.": 0.0,
+      "count": 2
+    },
+    {
+      "task_type": "",
+      "dataset_name": "gsm8k",
+      "subset_name": "main",
+      "micro_avg.": 0.0,
+      "count": 2
+    },
+    {
+      "task_type": "",
+      "dataset_name": "aime25",
+      "subset_name": "AIME2025-I",
+      "micro_avg.": 0.0,
+      "count": 1
+    },
+    {
+      "task_type": "",
+      "dataset_name": "aime25",
+      "subset_name": "AIME2025-II",
+      "micro_avg.": 0.0,
+      "count": 1
+    }
+  ],
+  "dataset_level": [
+    {
+      "task_type": "",
+      "dataset_name": "ceval",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 4
+    },
+    {
+      "task_type": "",
+      "dataset_name": "aime25",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 2
+    },
+    {
+      "task_type": "",
+      "dataset_name": "arc",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 2
+    },
+    {
+      "task_type": "",
+      "dataset_name": "gsm8k",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 2
+    }
+  ],
+  "task_level": [
+    {
+      "task_type": "",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 10
+    }
+  ],
+  "tag_level": [
+    {
+      "tags": "en",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 6
+    },
+    {
+      "tags": "zh",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 4
+    }
+  ],
+  "category_level": [
+    {
+      "category0": "reasoning_index",
+      "category1": "logic",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 6
+    },
+    {
+      "category0": "reasoning_index",
+      "category1": "math",
+      "micro_avg.": 0.0,
+      "macro_avg.": 0.0,
+      "weighted_avg.": 0.0,
+      "count": 4
+    }
+  ]
+}
