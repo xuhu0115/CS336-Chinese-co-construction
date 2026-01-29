@@ -1,14 +1,13 @@
 # @package _global_
 
 paths:
-  # Set to your data, tokenized with GPT-2 tokenizer!
-  train_bin: /data/c-nband/a1-basics/owt_train_gpt2_tok.bin
-  
-  # The validation set which we have already tokenized with GPT-2 tokenizer, don't change this!
-  valid_bin: /data/paloma/tokenized_paloma_c4_100_domains_validation.bin
+  # 这里填写我们的上一个作业的训练集
+  train_bin: /home/kangkang/my_project/CS336-Chinese-co-construction/coursework/Assignment4_Data/cs336_data/tokenized/train.bin
+  # The validation set which we have already tokenized with GPT-2 tokenizer, don't change this! 由于我们不在斯坦福的服务器上，我们使用自己的验证集来跑通
+  valid_bin: /home/kangkang/my_project/CS336-Chinese-co-construction/coursework/Assignment4_Data/cs336_data/tokenized/val.bin
   
   model_output: output/your_data
 
 training:
-  wandb_entity: ???  # Set to your wandb entity, e.g. pliang
+  wandb_entity: kangkang262614 # Set to your wandb entity, e.g. pliang
   wandb_project: cs336-data

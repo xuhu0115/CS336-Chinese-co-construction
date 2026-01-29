@@ -1,0 +1,7 @@
+paths:
+  train_bin: /home/kangkang/my_project/CS336-Chinese-co-construction/coursework/Assignment4_Data/cs336_data/tokenized/train.bin
+  valid_bin: /home/kangkang/my_project/CS336-Chinese-co-construction/coursework/Assignment4_Data/cs336_data/tokenized/val.bin
+  model_output: output/your_data
+training:
+  wandb_entity: kangkang262614
+  wandb_project: cs336-data

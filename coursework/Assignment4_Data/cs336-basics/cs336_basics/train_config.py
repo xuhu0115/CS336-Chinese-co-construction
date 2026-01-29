@@ -16,15 +16,35 @@ class PathsConfig:
     model_output: Path = MISSING
 
 
-@dataclass
+'''@dataclass
 class ModelConfig:
     vocab_size: int = 50257
-    context_length: int = 512
+    context_length: int = 128
     d_model: int = 768
     d_ff: int = 2048  # floor(d_model * 8/3 / 64) * 64
     num_layers: int = 12
     num_heads: int = 12
-    rope_theta: float | None = 10000.0
+    rope_theta: float | None = 10000.0'''
+
+@dataclass # 笔记本8G显存可以跑
+class ModelConfig:
+    vocab_size: int = 50257      # GPT-2 词表大小（固定）
+    context_length: int = 128    # 序列长度：降低以减少显存占用
+    d_model: int = 384           # 模型维度：减半（原768 → 384）
+    num_layers: int = 6          # 层数：减半（原12 → 6）
+    num_heads: int = 6           # 注意力头数：减半，必须整除 d_model（384/6=64）
+    
+    # 前馈网络维度：按 d_model * 4 计算，约 1536
+    # 或用 8/3 规则：floor(384 * 8/3 / 64) * 64 = floor(1024/64)*64 = 1024
+    d_ff: int = 1024             # 简单按 4x 计算，或设为 1024 更省显存
+    
+    rope_theta: float = 10000.0  # RoPE 基频
+    
+    # ========== 新增训练优化参数 ==========
+    dropout: float = 0.1         # 防止过拟合
+    weight_decay: float = 0.01   # 权重衰减
+    max_lr: float = 6e-4         # 最大学习率（随模型减小适当增大）
+    warmup_steps: int = 2000 
 
 
 @dataclass
