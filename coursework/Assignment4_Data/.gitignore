@@ -24,6 +24,9 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+output/
+outputs/
+wandb/
 extracted/
 .Python
 build/
