@@ -5,35 +5,6 @@ import torch.distributed as dist
 import os
 
 # ============================
-# 一、定义简单的多层感知机
-# ============================
-class SimpleNet(nn.Module):
-    def __init__(self, input_size=784, hidden_sizes=[256, 128], num_classes=10):
-        super(SimpleNet, self).__init__()
-
-        # Create a list of layer sizes
-        layer_sizes = [input_size] + hidden_sizes + [num_classes]
-
-        # 将所有层保存到 ModuleList
-        self.layers = nn.ModuleList()
-        for i in range(len(layer_sizes) - 1):
-            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
-
-    def forward(self, x):
-        # Flatten the input (batch_size, 1, 28, 28) -> (batch_size, 784)
-        x = torch.flatten(x, 1)
-
-        # 前向传播：所有隐藏层使用 ReLU 激活
-        for layer in self.layers[:-1]:
-            x = F.relu(layer(x))
-
-        # 输出层不使用激活（方便配合交叉熵损失）
-        x = self.layers[-1](x)
-
-        return F.log_softmax(x, dim=1)
-
-
-# ============================
 # 二、手动 DDP（按桶通信梯度）
 # ============================
 class DDPOverlapBucketed(nn.Module):

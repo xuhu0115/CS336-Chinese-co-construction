@@ -9,6 +9,7 @@ dependencies = [
     "einx>=0.3.0",
     "ipykernel>=7.1.0",
     "jaxtyping>=0.3.5",
+    "pytest>=9.0.2",
     "torch>=2.9.1",
     "torchvision>=0.24.1",
     "wandb>=0.24.0",

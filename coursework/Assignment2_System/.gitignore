@@ -54,7 +54,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-
+profiler_log/
 # Translations
 *.mo
 *.pot
