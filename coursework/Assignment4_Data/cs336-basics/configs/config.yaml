@@ -1,0 +1,5 @@
+defaults:
+  - paths: base_paths
+  - model: base_model
+  - training: base_training
+  - _self_

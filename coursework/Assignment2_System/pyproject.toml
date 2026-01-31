@@ -1,0 +1,26 @@
+[project]
+name = "assignment2-system"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "einops>=0.8.1",
+    "einx>=0.3.0",
+    "ipykernel>=7.1.0",
+    "jaxtyping>=0.3.5",
+    "pytest>=9.0.2",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+    "wandb>=0.24.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
