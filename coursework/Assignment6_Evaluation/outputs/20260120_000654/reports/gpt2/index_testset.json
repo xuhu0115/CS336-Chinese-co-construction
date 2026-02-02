@@ -1,0 +1,35 @@
+{
+    "name": "data_collection",
+    "dataset_name": "index_testset",
+    "dataset_pretty_name": "",
+    "dataset_description": "",
+    "model_name": "gpt2",
+    "score": 0.0,
+    "metrics": [
+        {
+            "name": "Average",
+            "num": 3,
+            "score": 0.0,
+            "macro_score": 0.0,
+            "categories": [
+                {
+                    "name": [
+                        "reasoning_index",
+                        "logic"
+                    ],
+                    "num": 3,
+                    "score": 0.0,
+                    "macro_score": 0.0,
+                    "subsets": [
+                        {
+                            "name": "ceval/logic",
+                            "score": 0.0,
+                            "num": 3
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "analysis": "N/A"
+}

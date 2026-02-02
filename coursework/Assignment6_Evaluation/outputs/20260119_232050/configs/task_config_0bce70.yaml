@@ -1,0 +1,39 @@
+analysis_report: false
+api_key: EMPTY
+api_url: null
+chat_template: null
+dataset_args:
+  data_collection:
+    shuffle: true
+dataset_dir: /Users/xuhu.6736/.cache/modelscope/hub/datasets
+dataset_hub: modelscope
+datasets:
+- data_collection
+debug: false
+dry_run: false
+eval_backend: Native
+eval_batch_size: 5
+eval_config: null
+eval_type: checkpoint
+generation_config:
+  temperature: 0.0
+ignore_errors: false
+judge_model_args: {}
+judge_strategy: auto
+judge_worker_num: 1
+limit: null
+mem_cache: false
+model: openai-community/gpt2
+model_args:
+  precision: torch.float16
+  revision: master
+model_id: gpt2
+model_task: text_generation
+outputs: null
+seed: 42
+stage: all
+stream: false
+template_type: null
+timeout: null
+use_cache: null
+work_dir: ./outputs/20260119_232050
