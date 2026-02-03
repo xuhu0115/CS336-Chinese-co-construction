@@ -13,6 +13,7 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from unittest.mock import patch
 from vllm import LLM, SamplingParams
+from vllm.model_executor import set_random_seed as vllm_set_random_seed
 
 import wandb
 
@@ -63,7 +64,7 @@ def format_prompt(template: str, question: str) -> str:
 
 # --- vLLM Helper Functions ---
 def init_vllm(model_id: str, device: str, seed: int, gpu_memory_utilization: float = 0.50):
-    from vllm.model_executor import set_random_seed as vllm_set_random_seed
+    
     vllm_set_random_seed(seed)
 
     world_size_patch = patch("torch.distributed.get_world_size", return_value=1)
