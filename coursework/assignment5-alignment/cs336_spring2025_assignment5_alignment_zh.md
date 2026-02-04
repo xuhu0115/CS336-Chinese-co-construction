@@ -901,7 +901,7 @@ def compute_naive_policy_gradient_loss(
 每个 token 的 GRPO-Clip 损失是
 
 $$
--A_t \cdot \log p_\theta(o_t \mid q, o_{\lt t}) &emsp;&emsp;(32)
+- \min \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})} A_t, \text{clip} \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). &emsp;&emsp;(33)
 $$
 
 $$
