@@ -732,8 +732,11 @@ $$
 **关于策略梯度“损失”的说明。** 当我们在 PyTorch 这样的框架中实现策略梯度方法时，我们将定义一个所谓的**策略梯度损失**（pg_loss），使得调用 `pg_loss.backward()` 会用我们近似的策略梯度 $\hat{g}$ 填充模型参数的梯度缓冲区。用数学语言表达，即：
 
 $$
-\text{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) (R(\tau^{(i)}) - b(s^{(i)}_t)).  &emsp;&emsp;(26)
+\mathrm{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} 
+\log \pi_\theta\!\left( a^{(i)}_t \,\middle|\, s^{(i)}_t \right) 
+\left( R(\tau^{(i)}) - b(s^{(i)}_t) \right)
 $$
+&emsp;&emsp;(26)
 
 `pg_loss` 在规范意义上并不是一个损失——报告 `pg_loss` 作为训练或验证集上的评估指标是没有意义的，一个好的验证 `pg_loss` 并不表示我们的模型泛化得很好。`pg_loss` 实际上只是一个标量，当我们调用 `pg_loss.backward()` 时，通过反向传播得到的梯度就是近似的策略梯度 $\hat{g}$。
 
