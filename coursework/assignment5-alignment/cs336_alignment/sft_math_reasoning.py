@@ -220,11 +220,12 @@ def run_sft_experiment(train_data_path: str, max_examples: int = -1,
         random.shuffle(sft_data)
 
         for i in tqdm(range(0, len(sft_data), BATCH_SIZE), desc=f"Epoch {epoch + 1}"):
+            # 1. 准备批次数据
             batch_data = sft_data[i : i + BATCH_SIZE]
             if not batch_data:
                 continue
 
-            # Extract prompts and responses
+            # 2. 格式化提示和响应
             prompt_strs = []
             output_strs = []
 
@@ -246,13 +247,13 @@ def run_sft_experiment(train_data_path: str, max_examples: int = -1,
             if not prompt_strs:
                 continue
 
-            # Tokenize and move to device
+            # 3. 分词
             tokenized = tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer)
             input_ids = tokenized["input_ids"].to(device_policy)
             labels = tokenized["labels"].to(device_policy)
             response_mask = tokenized["response_mask"].to(device_policy)
-
-            # Forward pass to get log probs
+            
+            # 4. 前向传播
             outputs = model(input_ids)
             logits = outputs.logits
 
@@ -263,7 +264,7 @@ def run_sft_experiment(train_data_path: str, max_examples: int = -1,
                 index=labels.unsqueeze(2)
             ).squeeze(2)
 
-            # Loss and backward
+            # 5. 计算损失并反向传播
             loss, _ = sft_microbatch_train_step(
                 policy_log_probs=per_token_log_probs,
                 response_mask=response_mask,
@@ -271,7 +272,7 @@ def run_sft_experiment(train_data_path: str, max_examples: int = -1,
             )
             batch_loss += loss.item()
 
-            # Optimizer step
+            # 6. 梯度累积和优化器步骤
             if (global_step + 1) % GRAD_ACCUM == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), MAX_GRAD_NORM)
                 optimizer.step()
@@ -284,7 +285,7 @@ def run_sft_experiment(train_data_path: str, max_examples: int = -1,
                 })
                 batch_loss = 0.0
 
-            # Evaluation
+            # 7. 定期评估
             if (global_step + 1) % eval_every_steps == 0:
                 print(f"Step {global_step}: Evaluating...")
                 model.eval()
