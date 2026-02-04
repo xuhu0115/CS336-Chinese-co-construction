@@ -901,12 +901,9 @@ def compute_naive_policy_gradient_loss(
 每个 token 的 GRPO-Clip 损失是
 
 $$
-- \min \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})} A_t, \text{clip} \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right).
+-\min \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})} A_t, \text{clip} \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). 
 $$
-
-$$
-- \min \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})} A_t, \text{clip} \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). &emsp;&emsp;(33)
-$$
+&emsp;&emsp;(33)
 
 **问题（compute_grpo_clip_loss）：GRPO-Clip 损失（2 分）**
 **交付物：** 实现一个 `compute_grpo_clip_loss` 方法，计算每个 token 的 GRPO-Clip 损失。
