@@ -309,10 +309,10 @@ def tokenize_prompt_and_output(
 
 要测试你的代码，请实现 [adapters.run_tokenize_prompt_and_output]。然后，运行 uv run pytest -k test_tokenize_prompt_and_output 并确保你的实现通过测试。
 
-**记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为
+**记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为：
 
 $$
-H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x). \tag{1}
+H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x)
 $$
 
 给定我们 SFT 或 RL 模型的 logits，我们将计算每个 token 的熵，即每个下一个 token 预测的熵。
