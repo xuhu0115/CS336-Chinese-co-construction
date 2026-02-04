@@ -814,9 +814,9 @@ $$
 \text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.
 $$
 
-由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{\lt t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{\lt t}) > (1+\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_{t} \mid q, o^{(i)}_{\lt t})$ ，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$ 。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\text{old}}}$ 。
+由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{< t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{< t}) > (1+\epsilon)\pi_{\theta_{\mathrm{old}}}(o^{(i)}_{t} \mid q, o^{(i)}_{< t})$ ，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$ 。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\mathrm{old}}}$ 。
 
-类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{\lt t})$ ，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_{t} \mid q, o^{(i)}_{\lt t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
+类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_{\theta}(o^{(i)}_{t} \mid q, o^{(i)}_{< t})$ ，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\mathrm{old}}}(o^{(i)}_{t} \mid q, o^{(i)}_{< t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
 
 ![](images/algorithm3_GRPO.png)
 
