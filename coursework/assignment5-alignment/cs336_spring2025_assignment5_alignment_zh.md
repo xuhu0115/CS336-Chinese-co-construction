@@ -339,7 +339,12 @@ def compute_entropy(logits: torch.Tensor) -> torch.Tensor:
 要测试你的代码，请实现 [adapters.run_compute_entropy]。然后运行 uv run pytest -k test_compute_entropy 并确保实现通过。
 
 **从模型获取对数概率**。 从模型获取对数概率是在 SFT 和 RL 中都需要的一个基本操作。
-对于前缀 x，产生下一 token logits $fθ(x) ∈ R^{|V|}$ 的 LM，以及标签 $y ∈ V$，y 的对数概率为 $log pθ(y | x) = log [softmax(fθ(x))]_y, (2)$
+对于前缀 x，产生下一 token logits $fθ(x) ∈ R^{|V|}$ 的 LM，以及标签 $y ∈ V$，y 的对数概率为 
+
+$$
+log pθ(y | x) = log [softmax(fθ(x))]_y  &emsp;&emsp; (2)
+$$
+
 其中符号 $[x]_y$ 表示向量 x 的第 y 个元素。
 
 你将希望使用一种数值稳定的方法来计算它，并且可以自由使用 torch.nn.functional 中的方法。我们还建议包含一个参数来选择性地计算并返回 token 熵。
@@ -602,13 +607,13 @@ $$
 回报 $R(τ)$ 沿轨迹聚合奖励。两种常见的选择是有限时域无折扣回报
 
 $$
-R(\tau) := \sum_{t=0}^{T} r_t, \tag{5}
+R(\tau) := \sum_{t=0}^{T} r_t, &emsp;&emsp; (5)
 $$
 
 和无限时域折扣回报
 
 $$
-R(\tau) := \sum_{t=0}^{∞} γ^t r_t, 0 < γ < 1. \tag{6}
+R(\tau) := \sum_{t=0}^{∞} γ^t r_t, 0 < γ < 1. &emsp;&emsp; (6)
 $$
 
 在我们的案例中，我们将使用无折扣公式，因为 episodes 有自然的终止点（文本结束或最大生成长度）。
@@ -616,7 +621,7 @@ $$
 代理的目标是最大化期望回报 
 
 $$
-J(θ) = E_{τ∼πθ}[R(τ)], \tag{7}
+J(θ) = E_{τ∼πθ}[R(τ)], &emsp;&emsp; (7)
 $$
 
 从而导致优化问题 
@@ -628,20 +633,40 @@ $$
 ### 6.4 原始策略梯度
 
 接下来，让我们尝试使用期望回报上的梯度上升来学习策略参数 $\theta$：
-$$\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). \quad (9)$$
+
+$$
+\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). \quad (9)
+$$
+
 我们将使用的核心恒等式是下面所示的 **REINFORCE 策略梯度**。
-$$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (10)$$
+
+$$
+\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. &emsp;&emsp; (10)
+$$
 
 **推导策略梯度。** 我们是如何得到这个方程的？为了完整性，我们将在下面给出这个恒等式的推导。我们将用到几个恒等式。
 1.  轨迹的概率由下式给出
-    $$P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)$$
+
+    $$
+    P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)
+    $$
+
     因此，轨迹的对数概率为：
-    $$\log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)$$
+    
+    $$
+    \log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)
+    $$
+
 2.  **对数导数技巧**（log-derivative trick）：
-    $$\nabla_\theta P = P \nabla_\theta \log P. \quad (13)$$
-3.  **环境项在 $\theta$ 中是常数**。$\rho_0$、$P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 $\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)$
+    
+    $$
+    \nabla_\theta P = P \nabla_\theta \log P. \quad (13)
+    $$
+
+3.  **环境项在 $\theta$ 中是常数**。 $\rho_0$ 、 $P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 $\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)$
 
 应用以上事实：
+
 $$
 \begin{align}
 \nabla_\theta J(\theta) &= \nabla_\theta \mathbb{E}_{\tau \sim \pi_\theta}[R(\tau)] \quad (15) \\
@@ -651,6 +676,7 @@ $$
 &= \mathbb{E}_{\tau \sim \pi_\theta}[\nabla_\theta \log P(\tau|\theta) R(\tau)], \quad (19)
 \end{align}
 $$
+
 因此，代入轨迹的对数概率并利用环境项在 $\theta$ 中是常数这一事实，我们得到了原始的或 REINFORCE 策略梯度：
 $$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (20)$$
 直观地说，这个梯度会增加高回报轨迹中每个动作的对数概率，反之则会降低它们。
