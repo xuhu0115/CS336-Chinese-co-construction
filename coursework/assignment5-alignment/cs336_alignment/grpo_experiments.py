@@ -43,7 +43,7 @@ from gpro_helper import (
 )
 from evaluate_math import evaluate_vllm
 from drgrpo_grader import r1_zero_reward_fn, question_only_reward_fn
-
+import gc
 
 # --------------------------- Config ---------------------------
 
@@ -463,39 +463,7 @@ def run_grpo_experiment(cfg: GRPOConfig) -> Dict[str, float]:
 
 # --------------------------- Individual Experiments ---------------------------
 
-def run_lr_sweep_experiment():
-    """学习率调整实验 (grpo_learning_rate)"""
-    print("=== Running Learning Rate Sweep Experiment ===")
-
-    LEARNING_RATES = [1e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4]
-    results = {}
-
-    base_config = GRPOConfig(
-        n_grpo_steps=50,  # Shorter for sweep
-        run_name="lr_sweep",
-    )
-
-    for lr in LEARNING_RATES:
-        config = GRPOConfig(**asdict(base_config))
-        config.lr = lr
-        config.run_name = f"grpo_lr_{lr}"
-        config.output_dir = f"results/grpo_lr_{lr}"
-
-        print(f"\n--- Testing LR: {lr} ---")
-        final_metrics = run_grpo_experiment(config)
-        results[lr] = final_metrics.get("answer_accuracy", 0.0)
-
-    print("\nLearning Rate Sweep Results:")
-    for lr, acc in results.items():
-        print(f"LR {lr}: {acc:.4f}") # 修复了原代码 print(".2e") 的格式错误
-
-    best_lr = max(results.keys(), key=lambda x: results[x])
-    print(f"\nBest LR: {best_lr} with accuracy: {results[best_lr]:.4f}")
-
-    return results
-
-
-# def run_lr_sweep_experiment():   # 修改此处
+# def run_lr_sweep_experiment():   # 快速测试
 #     """学习率调整实验 (grpo_learning_rate) - 快速测试版"""
 #     print("=== Running Learning Rate Sweep Experiment (DEBUG MODE) ===")
 
@@ -546,6 +514,40 @@ def run_lr_sweep_experiment():
 
 #     return results
 
+def run_lr_sweep_experiment():
+    """学习率调整实验 (grpo_learning_rate)"""
+    print("=== Running Learning Rate Sweep Experiment ===")
+
+    LEARNING_RATES = [1e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4]
+    results = {}
+
+    base_config = GRPOConfig(
+        n_grpo_steps=50,  # Shorter for sweep
+        run_name="lr_sweep",
+    )
+
+    for lr in LEARNING_RATES:
+        config = GRPOConfig(**asdict(base_config))
+        config.lr = lr
+        config.run_name = f"grpo_lr_{lr}"
+        config.output_dir = f"results/grpo_lr_{lr}"
+
+        print(f"\n--- Testing LR: {lr} ---")
+        final_metrics = run_grpo_experiment(config)
+        results[lr] = final_metrics.get("answer_accuracy", 0.0)
+
+    print("\nLearning Rate Sweep Results:")
+    for lr, acc in results.items():
+        print(f"LR {lr}: {acc:.4f}") # 修复了原代码 print(".2e") 的格式错误
+
+    best_lr = max(results.keys(), key=lambda x: results[x])
+    print(f"\nBest LR: {best_lr} with accuracy: {results[best_lr]:.4f}")
+
+    return results
+
+
+
+
 def run_baseline_experiment():# 未完成，卡在reinforce_with_baseline
     """基线影响实验 (grpo_baselines)"""
     print("=== Running Baseline Experiment ===")
@@ -557,8 +559,7 @@ def run_baseline_experiment():# 未完成，卡在reinforce_with_baseline
 
     for loss_type in BASELINE_TYPES:
         # 显存清理：虽然分卡了，但保持好习惯
-        import torch
-        import gc
+
         torch.cuda.empty_cache()
         gc.collect()
 

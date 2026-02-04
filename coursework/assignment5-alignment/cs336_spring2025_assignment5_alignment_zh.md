@@ -1,6 +1,7 @@
 # CS336 作业 5 (对齐): 对齐与推理强化学习 
-Version 1.0.2
-原内容：CS336 助教团队，翻译：徐虎 
+
+Version 1.0.2  
+原内容：CS336 助教团队，翻译：徐虎   
 Spring 2025
 
 ## 1 作业概述 
@@ -308,12 +309,10 @@ def tokenize_prompt_and_output(
 
 要测试你的代码，请实现 [adapters.run_tokenize_prompt_and_output]。然后，运行 uv run pytest -k test_tokenize_prompt_and_output 并确保你的实现通过测试。
 
-**记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为
-
+**记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为：
 
 $$
-H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x).
-\tag{1}
+H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x) &emsp;&emsp; (1)
 $$
 
 给定我们 SFT 或 RL 模型的 logits，我们将计算每个 token 的熵，即每个下一个 token 预测的熵。
@@ -340,7 +339,12 @@ def compute_entropy(logits: torch.Tensor) -> torch.Tensor:
 要测试你的代码，请实现 [adapters.run_compute_entropy]。然后运行 uv run pytest -k test_compute_entropy 并确保实现通过。
 
 **从模型获取对数概率**。 从模型获取对数概率是在 SFT 和 RL 中都需要的一个基本操作。
-对于前缀 x，产生下一 token logits $fθ(x) ∈ R^{|V|}$ 的 LM，以及标签 $y ∈ V$，y 的对数概率为 $log pθ(y | x) = log [softmax(fθ(x))]_y, (2)$
+对于前缀 x，产生下一 token logits $fθ(x) ∈ R^{|V|}$ 的 LM，以及标签 $y ∈ V$，y 的对数概率为 
+
+$$
+log pθ(y | x) = log [softmax(fθ(x))]_y  &emsp;&emsp; (2)
+$$
+
 其中符号 $[x]_y$ 表示向量 x 的第 y 个元素。
 
 你将希望使用一种数值稳定的方法来计算它，并且可以自由使用 torch.nn.functional 中的方法。我们还建议包含一个参数来选择性地计算并返回 token 熵。
@@ -564,8 +568,9 @@ sampling_params = SamplingParams(
 ### 6.1 作为策略的语言模型
 
 有参数 θ 的因果语言模型（LM）定义了给定当前文本前缀 $s_t$ （状态/观测）的下一个 token $a_t$ ∈ V 的概率分布。在 RL 的上下文中，我们将下一个 token $a_t$ 视为动作，将当前文本前缀 $s_t$ 视为状态。因此，LM 是一个分类随机策略
+
 $$
-a_t ∼ πθ(· | s_t), πθ(a_t | s_t) = [softmax(f_θ(s_t))]_{a_t}.  (3)
+a_t ∼ πθ(· | s_t), πθ(a_t | s_t) = [softmax(f_θ(s_t))]_{a_t}.  &emsp;&emsp; (3)
 $$
 
 在使用策略梯度优化策略时，需要两个基本操作：
@@ -580,12 +585,12 @@ $$
 一个（有限时域）轨迹是代理（agent）经历的状态和动作的交错序列：
 
 $$
-τ = (s_0, a_0, s_1, a_1, ..., s_T, a_T), (4)
+τ = (s_0, a_0, s_1, a_1, ..., s_T, a_T), &emsp;&emsp; (4)
 $$
 
-其中 T 是轨迹的长度，即，$a_T$ 是一个文本结束 token，或者我们已经达到了最大生成 token 预算。
+其中 T 是轨迹的长度，即 $a_T$ 是一个文本结束 token，或者我们已经达到了最大生成 token 预算。
 
-初始状态从起始分布中抽取，$s_0 ∼ ρ_0(s_0)$；在 LLMs 的 RL 中，$ρ_0(s_0)$ 是格式化提示的分布。在一般设置中，状态转换遵循某种环境动力学 $s_{t+1} ∼ P(· | s_t, a_t)$。在 LLMs 的 RL 中，环境是确定性的：下一个状态是旧前缀与发出的 token 的连接，$s_{t+1} = s_t ∥ a_t$。轨迹也称为 episodes 或 rollouts；我们将互换使用这些术语。
+初始状态从起始分布中抽取 $s_0 ∼ ρ_0(s_0)$ ；在 LLMs 的 RL 中， $ρ_0(s_0)$ 是格式化提示的分布。在一般设置中，状态转换遵循某种环境动力学 $s_{t+1} ∼ P(· | s_t, a_t)$ 。在 LLMs 的 RL 中，环境是确定性的：下一个状态是旧前缀与发出的 token 的连接， $s_{t+1} = s_t ∥ a_t$ 。轨迹也称为 episodes 或 rollouts；我们将互换使用这些术语。
 
 ### 6.3 奖励和回报 (Rewards and Return)
 
@@ -602,13 +607,13 @@ $$
 回报 $R(τ)$ 沿轨迹聚合奖励。两种常见的选择是有限时域无折扣回报
 
 $$
-R(\tau) := \sum_{t=0}^{T} r_t, \tag{5}
+R(\tau) := \sum_{t=0}^{T} r_t, &emsp;&emsp; (5)
 $$
 
 和无限时域折扣回报
 
 $$
-R(\tau) := \sum_{t=0}^{∞} γ^t r_t, 0 < γ < 1. \tag{6}
+R(\tau) := \sum_{t=0}^{∞} γ^t r_t, 0 < γ < 1. &emsp;&emsp; (6)
 $$
 
 在我们的案例中，我们将使用无折扣公式，因为 episodes 有自然的终止点（文本结束或最大生成长度）。
@@ -616,7 +621,7 @@ $$
 代理的目标是最大化期望回报 
 
 $$
-J(θ) = E_{τ∼πθ}[R(τ)], \tag{7}
+J(θ) = E_{τ∼πθ}[R(τ)], &emsp;&emsp; (7)
 $$
 
 从而导致优化问题 
@@ -628,20 +633,44 @@ $$
 ### 6.4 原始策略梯度
 
 接下来，让我们尝试使用期望回报上的梯度上升来学习策略参数 $\theta$：
-$$\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). \quad (9)$$
+
+$$
+\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). &emsp;&emsp; (9)
+$$
+
 我们将使用的核心恒等式是下面所示的 **REINFORCE 策略梯度**。
-$$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (10)$$
+
+$$
+\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. &emsp;&emsp; (10)
+$$
 
 **推导策略梯度。** 我们是如何得到这个方程的？为了完整性，我们将在下面给出这个恒等式的推导。我们将用到几个恒等式。
 1.  轨迹的概率由下式给出
-    $$P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)$$
+
+$$
+P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)
+$$
+
     因此，轨迹的对数概率为：
-    $$\log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)$$
+    
+$$
+\log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)
+$$
+
 2.  **对数导数技巧**（log-derivative trick）：
-    $$\nabla_\theta P = P \nabla_\theta \log P. \quad (13)$$
-3.  **环境项在 $\theta$ 中是常数**。$\rho_0$、$P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 $\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)$
+    
+$$
+\nabla_\theta P = P \nabla_\theta \log P. \quad (13)
+$$
+
+3.  **环境项在 $\theta$ 中是常数**。 $\rho_0$ 、 $P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 
+
+$$
+\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)
+$$
 
 应用以上事实：
+
 $$
 \begin{align}
 \nabla_\theta J(\theta) &= \nabla_\theta \mathbb{E}_{\tau \sim \pi_\theta}[R(\tau)] \quad (15) \\
@@ -651,12 +680,21 @@ $$
 &= \mathbb{E}_{\tau \sim \pi_\theta}[\nabla_\theta \log P(\tau|\theta) R(\tau)], \quad (19)
 \end{align}
 $$
+
 因此，代入轨迹的对数概率并利用环境项在 $\theta$ 中是常数这一事实，我们得到了原始的或 REINFORCE 策略梯度：
-$$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (20)$$
+
+$$
+\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (20)
+$$
+
 直观地说，这个梯度会增加高回报轨迹中每个动作的对数概率，反之则会降低它们。
 
 **梯度的样本估计。** 给定一个通过从起始状态 $s^{(i)}_0 \sim \rho_0(s_0)$ 采样，然后在环境中运行策略 $\pi_\theta$ 收集的 $N$ 个 rollout 批次 $\mathcal{D} = \{\tau^{(i)}\}_{i=1}^N$，我们形成梯度的无偏估计为
-$$\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (21)$$
+
+$$
+\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (21)
+$$
+
 该向量用于梯度上升更新 $\theta \leftarrow \theta + \alpha \hat{g}$。
 
 ### 6.5 策略梯度基线
@@ -664,19 +702,41 @@ $$\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\th
 原始策略梯度的主要问题是梯度估计的方差很高。减轻此问题的一种常用技术是从奖励中减去一个仅依赖于状态的**基线函数**（baseline function）$b$。这是一种**控制变量**（control variate）[Ross, 2022]：其思想是通过减去一个与它相关的项来降低估计器的方差，同时不引入偏差。
 
 让我们将基于基线的策略梯度定义为：
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) (R(\tau) - b(s_t)) \right]. \quad (22)$$
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) (R(\tau) - b(s_t)) \right]. \quad (22)
+$$
+
 作为一个例子，一个合理的基线是**策略价值函数**（on-policy value function）$V^\pi(s) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau) | s_t = s]$，即如果我们从 $s_t = s$ 开始并遵循策略 $\pi_\theta$，期望的回报是多少。那么，量 $(R(\tau) - V^\pi(s_t))$ 直观上表示实际轨迹比预期好多少。
 
 只要基线只依赖于状态，基于基线的策略梯度就是无偏的。我们可以通过将基于基线的策略梯度重写为
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right]. \quad (23)$$
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right]. \quad (23)
+$$
+
 专注于基线项，我们看到
-$$\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right] = \sum_{t=0}^{T} \mathbb{E}_{s_t} \left[ b(s_t) \mathbb{E}_{a_t \sim \pi_\theta(\cdot|s_t)} [\nabla_\theta \log \pi_\theta(a_t | s_t)] \right]. \quad (24)$$
-一般来说，**得分函数**（score function）的期望为零：$\mathbb{E}_{x \sim P_\theta}[\nabla_\theta \log P_\theta(x)] = 0$。因此，公式 (24) 中的表达式为零，并且
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - 0 = \nabla_\theta J(\pi_\theta), \quad (25)$$
+
+$$
+\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right] = \sum_{t=0}^{T} \mathbb{E}_{s_t} \left[ b(s_t) \mathbb{E}_{a_t \sim \pi_\theta(\cdot|s_t)} [\nabla_\theta \log \pi_\theta(a_t | s_t)] \right]. \quad (24)
+$$
+
+一般来说，**得分函数**（score function）的期望为零：$\mathbb{E}_{x \sim P_\theta}[\nabla_\theta \log P_\theta(x)] = 0$ 。因此，公式 (24) 中的表达式为零，并且
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - 0 = \nabla_\theta J(\pi_\theta), \quad (25)
+$$
+
 所以我们得出结论，基于基线的策略梯度是无偏的。我们稍后将运行一个实验，看看基线是否能提高下游性能。
 
-**关于策略梯度“损失”的说明。** 当我们在 PyTorch 这样的框架中实现策略梯度方法时，我们将定义一个所谓的**策略梯度损失**（pg_loss），使得调用 `pg_loss.backward()` 会用我们近似的策略梯度 $\hat{g}$ 填充模型参数的梯度缓冲区。用数学语言表达，即
-$$\text{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) (R(\tau^{(i)}) - b(s^{(i)}_t)). \quad (26)$$
+**关于策略梯度“损失”的说明。** 当我们在 PyTorch 这样的框架中实现策略梯度方法时，我们将定义一个所谓的**策略梯度损失**（pg_loss），使得调用 `pg_loss.backward()` 会用我们近似的策略梯度 $\hat{g}$ 填充模型参数的梯度缓冲区。用数学语言表达，即：
+
+$$
+\mathrm{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} 
+\log \pi_\theta\!\left( a^{(i)}_t \,\middle|\, s^{(i)}_t \right) 
+\left( R(\tau^{(i)}) - b(s^{(i)}_t) \right)  &emsp;&emsp;(26)
+$$
+
 `pg_loss` 在规范意义上并不是一个损失——报告 `pg_loss` 作为训练或验证集上的评估指标是没有意义的，一个好的验证 `pg_loss` 并不表示我们的模型泛化得很好。`pg_loss` 实际上只是一个标量，当我们调用 `pg_loss.backward()` 时，通过反向传播得到的梯度就是近似的策略梯度 $\hat{g}$。
 
 进行 RL 时，你应该始终记录和报告训练和验证奖励。这些是“有意义”的评估指标，也是我们试图用策略梯度方法优化的目标。
@@ -686,13 +746,21 @@ $$\text{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \log \pi_\theta(a^
 REINFORCE 是一种**同策略**（on-policy）算法：训练数据是由我们正在优化的相同策略收集的。为了说明这一点，让我们写出 REINFORCE 算法：
 1.  从当前策略 $\pi_\theta$ 中采样一批 rollout $\{\tau^{(i)}\}_{i=1}^N$。
 2.  将策略梯度近似为 $\nabla_\theta J(\pi_\theta) \approx \hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)})$。
-3.  使用计算出的梯度更新策略参数：$\theta \leftarrow \theta + \alpha \hat{g}$。
+3.  使用计算出的梯度更新策略参数： $\theta \leftarrow \theta + \alpha \hat{g}$ 。
 
 我们需要进行大量的推理来采样一个新的 rollout 批次，却只进行一次梯度步骤。LM 的行为通常在单个步骤中不会发生显著变化，因此这种在策略的方法效率非常低。
 
 **异策略策略梯度**（Off-policy policy gradient）。在离策略学习中，我们使用的 rollout 是从不同于我们正在优化的策略中采样的。PPO 和 GRPO 等流行的策略梯度算法的离策略变体使用来自策略 $\pi_\theta$ 的先前版本 $\pi_{\theta_{\text{old}}}$ 的 rollout 来优化当前策略 $\pi_\theta$。离策略策略梯度估计为
-$$\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (27)$$
-这看起来像是原始策略梯度的重要性采样版本，带有重加权项 $\frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)}$。
+
+$$
+\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). &emsp;&emsp;(27)
+$$
+
+这看起来像是原始策略梯度的重要性采样版本，带有重加权项
+
+$$
+\frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)}
+$$ 
 
 事实上，可以通过重要性采样并应用一个合理的近似来推导公式 (27)，只要 $\pi_\theta$ 和 $\pi_{\theta_{\text{old}}}$ 不是太不同即可：更多细节请参见 Degris 等人 [2013]。
 
@@ -706,8 +774,12 @@ $$\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{
 
 对于一个问题 $q$ 和从 $\pi_\theta$ 采样的一组输出 $\{o^{(i)}\}_{i=1}^G$，令 $r^{(i)} = R(q, o^{(i)})$ 为第 $i$ 个输出的奖励。
 DeepSeekMath [Shao 等人, 2024] 和 DeepSeek R1 [DeepSeek-AI 等人, 2025] 计算第 $i$ 个输出的**分组归一化奖励**（group-normalized reward）为
-$$A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage\_eps}}, \quad (28)$$
-其中 `advantage_eps` 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
+
+$$
+A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage}_{\epsilon}} \qquad (28)
+$$
+
+其中 $advantage_{\epsilon}$ 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
 
 **高级算法**（High-level algorithm）。在深入探讨 GRPO 目标之前，让我们首先通过写出 Shao 等人 [2024] 的算法 3 来了解训练循环的整体思路。
 
@@ -719,18 +791,34 @@ $$A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{s
 裁剪的目的是在对单个 rollout 批次进行多次梯度步骤时保持稳定性。它通过阻止策略 $\pi_\theta$ 过度偏离旧策略来实现。
 
 让我们首先写出完整的 GRPO-Clip 目标，然后我们可以构建一些关于裁剪作用的直觉：
-$$J_{\text{GRPO-Clip}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{o^{(i)}\}_{i=1}^G \sim \pi_\theta(\cdot|q)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o^{(i)}|} \sum_{t=1}^{|o^{(i)}|} \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, \text{clip}\left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A^{(i)} \right) \right]. \quad (29)$$
-超参数 $\epsilon > 0$ 控制策略可以改变的程度。为了看到这一点，我们可以按照 Achiam [2018a,b] 的方式重写每个 token 的目标。定义函数
-$$g(\epsilon, A^{(i)}) = \begin{cases} (1+\epsilon)A^{(i)} & \text{if } A^{(i)} \geq 0 \\ (1-\epsilon)A^{(i)} & \text{if } A^{(i)} < 0. \end{cases} \quad (30)$$
-我们可以将每个 token 的目标重写为
-$$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, g(\epsilon, A^{(i)}) \right)$$
-我们现在可以分情况讨论。当优势 $A^{(i)}$ 为正时，每个 token 的目标简化为
-$$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.$$
-由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t}) > (1+\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\text{old}}}$。
 
-类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
+$$
+J_{\text{GRPO-Clip}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{o^{(i)}\}_{i=1}^G \sim \pi_\theta(\cdot|q)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o^{(i)}|} \sum_{t=1}^{|o^{(i)}|} \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, \text{clip}\left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A^{(i)} \right) \right]. \quad (29)
+$$
+
+超参数 $\epsilon > 0$ 控制策略可以改变的程度。为了看到这一点，我们可以按照 Achiam [2018a,b] 的方式重写每个 token 的目标。定义函数
+
+$$
+g(\epsilon, A^{(i)}) = \begin{cases} (1+\epsilon)A^{(i)} & \text{if } A^{(i)} \geq 0 \\ (1-\epsilon)A^{(i)} & \text{if } A^{(i)} < 0. \end{cases} \quad (30)
+$$
 
 ![](images/algorithm3_GRPO.png)
+
+我们可以将每个 token 的目标重写为
+
+$$
+\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, g(\epsilon, A^{(i)}) \right)
+$$
+
+我们现在可以分情况讨论。当优势 $A^{(i)}$ 为正时，每个 token 的目标简化为
+
+$$
+\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.
+$$
+
+由于 $A^{(i)} > 0$，如果动作 $o_t^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_\theta(o_t^{(i)} \mid q, o_{<t}^{(i)})$ 增加，目标值就会上升。利用 `min` 进行的截断限制了目标值增加的幅度：一旦 $\pi_\theta(o_t^{(i)} \mid q, o_{<t}^{(i)}) > (1 + \epsilon)\pi_{\theta_{\mathrm{old}}}(o_t^{(i)} \mid q, o_{<t}^{(i)})$，该 token 的目标值就达到了其最大值 $(1 + \epsilon)A^{(i)}$。因此，策略 $\pi_\theta$ 不会受到激励去过分偏离旧策略 $\pi_{\theta_{\mathrm{old}}}$。
+
+类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_\theta(o_t^{(i)} \mid q, o_{<t}^{(i)})$，但不会受到激励将其降低到 $(1 - \epsilon)\pi_{\theta_{\mathrm{old}}}(o_t^{(i)} \mid q, o_{<t}^{(i)})$ 以下（完整的论证请参阅 Achiam [2018b]）。
 
 ### 7.2 实现
 
@@ -739,7 +827,11 @@ $$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i
 **计算优势**（分组归一化奖励）。首先，我们将实现逻辑来计算 rollout 批次中每个示例的优势，即分组归一化的奖励。我们将考虑两种可能的获得分组归一化奖励的方法：上面在公式 (28) 中提出的和最近的一种简化方法。
 
 Dr. GRPO [Liu 等人, 2025] 指出，通过 $\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)})$ 对奖励进行归一化会奖励批次中答案正确性变化较小的问题，这可能是不理想的。他们建议简单地移除归一化步骤，计算
-$$A^{(i)} = r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)}). \quad (31)$$
+
+$$
+A^{(i)} = r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)}). \quad (31)
+$$
+
 我们将实现这两种变体，并在作业的后面比较它们的性能。
 
 **问题（compute_group_normalized_rewards）：分组归一化（2 分）**
@@ -777,8 +869,11 @@ def compute_group_normalized_rewards(
 **朴素策略梯度损失**（Naive policy gradient loss）。接下来，我们将实现一些用于计算“损失”的方法。
 作为一个提醒/免责声明，这些在规范意义上并不是真正的损失，不应该作为评估指标报告。说到 RL，你应该跟踪训练和验证回报以及其他指标（参见第 6.5 节的讨论）。
 
-我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是
-$$-A_t \cdot \log p_\theta(o_t | q, o_{<t}). \quad (32)$$
+我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是：
+
+$$
+-A_t \cdot \log p_\theta(o_t \mid q, o_{\lt t}) &emsp;&emsp;(32)
+$$
 
 **问题（compute_naive_policy_gradient_loss）：朴素策略梯度（1 分）**
 **交付物：** 实现一个 `compute_naive_policy_gradient_loss` 方法，使用原始奖励或预先计算的优势来计算每个 token 的策略梯度损失。
@@ -804,7 +899,10 @@ def compute_naive_policy_gradient_loss(
 
 **GRPO-Clip 损失**（GRPO-Clip loss）。接下来，我们将实现更有趣的 GRPO-Clip 损失。
 每个 token 的 GRPO-Clip 损失是
-$$-\min \left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})} A_t, \text{clip}\left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). \quad (33)$$
+
+$$
+-\min \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})} A_t, \text{clip} \left( \frac{\pi_\theta(o_t | q, o_{\lt t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{\lt t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). \quad (33)
+$$
 
 **问题（compute_grpo_clip_loss）：GRPO-Clip 损失（2 分）**
 **交付物：** 实现一个 `compute_grpo_clip_loss` 方法，计算每个 token 的 GRPO-Clip 损失。
@@ -1179,4 +1277,66 @@ $$- \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})} A
 我们希望你喜欢通过从头开始构建现代语言模型的主要组件来学习其基础。
 
 ## 参考文献
-... (此处省略了原文中列出的所有参考文献，它们在翻译中保持原样)
+
+Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul Arora, Steven Basart, Eric Tang, Dawn Song, and Jacob Steinhardt. Measuring mathematical problem solving with the math dataset, 2021. URL https://arxiv.org/abs/2103.03874.
+
+DeepSeek-AI, Daya Guo, Dejian Yang, Haowei Zhang, Junxiao Song, Ruoyu Zhang, Runxin Xu, Qihao Zhu, Shirong Ma, Peiyi Wang, Xiao Bi, Xiaokang Zhang, Xingkai Yu, Yu Wu, Z. F. Wu, Zhibin Gou, Zhihong Shao, Zhuoshu Li, Ziyi Gao, Aixin Liu, Bing Xue, Bingxuan Wang, Bochao Wu, Bei Feng, Chengda Lu, Chenggang Zhao, Chengqi Deng, Chenyu Zhang, Chong Ruan, Damai Dai, Deli Chen, Dongjie Ji, Erhang Li, Fangyun Lin, Fucong Dai, Fuli Luo, Guangbo Hao, Guanting Chen, Guowei Li, H. Zhang, Han Bao,
+Hanwei Xu, Haocheng Wang, Honghui Ding, Huajian Xin, Huazuo Gao, Hui Qu, Hui Li, Jianzhong Guo, Jiashi Li, Jiawei Wang, Jingchang Chen, Jingyang Yuan, Junjie Qiu, Junlong Li, J. L. Cai, Jiaqi Ni, Jian Liang, Jin Chen, Kai Dong, Kai Hu, Kaige Gao, Kang Guan, Kexin Huang, Kuai Yu, Lean Wang, Lecong Zhang, Liang Zhao, Litong Wang, Liyue Zhang, Lei Xu, Leyi Xia, Mingchuan Zhang, Minghua Zhang, Minghui Tang, Meng Li, Miaojun Wang, Mingming Li, Ning Tian, Panpan Huang, Peng Zhang,
+Qiancheng Wang, Qinyu Chen, Qiushi Du, Ruiqi Ge, Ruisong Zhang, Ruizhe Pan, Runji Wang, R. J. Chen, R. L. Jin, Ruyi Chen, Shanghao Lu, Shangyan Zhou, Shanhuang Chen, Shengfeng Ye, Shiyu Wang, Shuiping Yu, Shunfeng Zhou, Shuting Pan, S. S. Li, Shuang Zhou, Shaoqing Wu, Shengfeng Ye, Tao Yun, Tian Pei, Tianyu Sun, T. Wang, Wangding Zeng, Wanjia Zhao, Wen Liu, Wenfeng Liang, Wenjun Gao, Wenqin Yu, Wentao Zhang, W. L. Xiao, Wei An, Xiaodong Liu, Xiaohan Wang, Xiaokang Chen, Xiaotao Nie, Xin Cheng, Xin Liu, Xin Xie, Xingchao Liu, Xinyu Yang, Xinyuan Li, Xuecheng Su, Xuheng Lin, X. Q. Li, Xiangyue Jin, Xiaojin Shen, Xiaosha Chen, Xiaowen Sun, Xiaoxiang Wang, Xinnan Song, Xinyi Zhou, Xianzu Wang, Xinxia Shan, Y. K. Li, Y. Q. Wang, Y. X. Wei, Yang Zhang, Yanhong Xu, Yao Li, Yao Zhao, Yaofeng Sun, Yaohui Wang, Yi Yu, Yichao Zhang, Yifan Shi, Yiliang Xiong, Ying He, Yishi Piao, Yisong Wang, Yixuan Tan, Yiyang Ma, Yiyuan Liu, Yongqiang Guo, Yuan Ou, Yuduan Wang, Yue Gong, Yuheng Zou, Yujia He, Yunfan Xiong, Yuxiang Luo, Yuxiang You, Yuxuan Liu, Yuyang Zhou, Y. X. Zhu, Yanhong Xu, Yanping Huang, Yaohui Li, Yi Zheng, Yuchen Zhu, Yunxian Ma, Ying Tang, Yukun Zha, Yuting Yan, Z. Z. Ren, Zehui Ren, Zhangli Sha, Zhe Fu,Zhean Xu, Zhenda Xie, Zhengyan Zhang, Zhewen Hao, Zhicheng Ma, Zhigang Yan, Zhiyu Wu, Zihui Gu, Zijia Zhu, Zijun Liu, Zilin Li, Ziwei Xie, Ziyang Song, Zizheng Pan, Zhen Huang, Zhipeng Xu, Zhongyu Zhang, and Zhen Zhang. Deepseek-r1: Incentivizing reasoning capability in llms via reinforcement learning, 2025. URL https://arxiv.org/abs/2501.12948.
+
+Maxwell Nye, Anders Johan Andreassen, Guy Gur-Ari, Henryk Michalewski, Jacob Austin, David Bieber, David Dohan, Aitor Lewkowycz, Maarten Bosma, David Luan, Charles Sutton, and Augustus Odena. Show your work: Scratchpads for intermediate computation with language models, 2021. URL https:
+//arxiv.org/abs/2112.00114.
+
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed Chi, Quoc Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language models, 2023. URL https://arxiv.org/abs/2201.11903.
+
+Eric Zelikman, Yuhuai Wu, Jesse Mu, and Noah D. Goodman. Star: Bootstrapping reasoning with reasoning,
+2022. URL https://arxiv.org/abs/2203.14465.
+
+Thomas Anthony, Zheng Tian, and David Barber. Thinking fast and slow with deep learning and tree search, 2017. URL https://arxiv.org/abs/1705.08439.
+
+OpenAI, :, Aaron Jaech, Adam Kalai, Adam Lerer, Adam Richardson, Ahmed El-Kishky, Aiden Low, Alec Helyar, Aleksander Madry, Alex Beutel, Alex Carney, Alex Iftimie, Alex Karpenko, Alex Tachard Passos, Alexander Neitz, Alexander Prokofiev, Alexander Wei, Allison Tam, Ally Bennett, Ananya Kumar, Andre Saraiva, Andrea Vallone, Andrew Duberstein, Andrew Kondrich, Andrey Mishchenko, Andy Applebaum, Angela Jiang, Ashvin Nair, Barret Zoph, Behrooz Ghorbani, Ben Rossen, Benjamin Sokolowsky, Boaz
+Barak, Bob McGrew, Borys Minaiev, Botao Hao, Bowen Baker, Brandon Houghton, Brandon McKinzie, Brydon Eastman, Camillo Lugaresi, Cary Bassin, Cary Hudson, Chak Ming Li, Charles de Bourcy, Chelsea Voss, Chen Shen, Chong Zhang, Chris Koch, Chris Orsinger, Christopher Hesse, Claudia Fischer, Clive Chan, Dan Roberts, Daniel Kappler, Daniel Levy, Daniel Selsam, David Dohan, David Farhi, David Mely, David Robinson, Dimitris Tsipras, Doug Li, Dragos Oprica, Eben Freeman, Eddie Zhang, Edmund Wong,
+Elizabeth Proehl, Enoch Cheung, Eric Mitchell, Eric Wallace, Erik Ritter, Evan Mays, Fan Wang, Felipe Petroski Such, Filippo Raso, Florencia Leoni, Foivos Tsimpourlas, Francis Song, Fred von Lohmann, Freddie Sulit, Geoff Salmon, Giambattista Parascandolo, Gildas Chabot, Grace Zhao, Greg Brockman, Guillaume Leclerc, Hadi Salman, Haiming Bao, Hao Sheng, Hart Andrin, Hessam Bagherinezhad, Hongyu Ren, Hunter Lightman, Hyung Won Chung, Ian Kivlichan, Ian O’Connell, Ian Osband, Ignasi Clavera Gilaberte, Ilge Akkaya, Ilya Kostrikov, Ilya Sutskever, Irina Kofman, Jakub Pachocki, James Lennon, Jason Wei, Jean Harb, Jerry Twore, Jiacheng Feng, Jiahui Yu, Jiayi Weng, Jie Tang, Jieqi Yu, Joaquin Quiñonero Candela, Joe Palermo, Joel Parish, Johannes Heidecke, John Hallman, John Rizzo, Jonathan Gordon, Jonathan Uesato, Jonathan Ward, Joost Huizinga, Julie Wang, Kai Chen, Kai Xiao, Karan Singhal, Karina Nguyen, Karl Cobbe, Katy Shi, Kayla Wood, Kendra Rimbach, Keren Gu-Lemberg, Kevin Liu, Kevin Lu, Kevin Stone, Kevin Yu, Lama Ahmad, Lauren Yang, Leo Liu, Leon Maksin, Leyton Ho, Liam Fedus, Lilian Weng, Linden Li, Lindsay McCallum, Lindsey Held, Lorenz Kuhn, Lukas Kondraciuk, Lukasz Kaiser, Luke Metz, Madelaine Boyd, Maja Trebacz, Manas Joglekar, Mark Chen, Marko Tintor, Mason Meyer, Matt Jones, Matt Kaufer, Max Schwarzer, Meghan Shah, Mehmet Yatbaz, Melody Y. Guan, Mengyuan Xu, Mengyuan Yan, Mia Glaese, Mianna Chen, Michael Lampe, Michael Malek, Michele Wang,
+Michelle Fradin, Mike McClay, Mikhail Pavlov, Miles Wang, Mingxuan Wang, Mira Murati, Mo Bavarian, Mostafa Rohaninejad, Nat McAleese, Neil Chowdhury, Neil Chowdhury, Nick Ryder, Nikolas Tezak, Noam Brown, Ofir Nachum, Oleg Boiko, Oleg Murk, Olivia Watkins, Patrick Chao, Paul Ashbourne, Pavel Izmailov, Peter Zhokhov, Rachel Dias, Rahul Arora, Randall Lin, Rapha Gontijo Lopes, Raz Gaon, Reah Miyara, Reimar Leike, Renny Hwang, Rhythm Garg, Robin Brown, Roshan James, Rui Shu, Ryan Cheu, Ryan Greene, Saachi Jain, Sam Altman, Sam Toizer, Sam Toyer, Samuel Miserendino, Sandhini Agarwal, Santiago Hernandez, Sasha Baker, Scott McKinney, Scottie Yan, Shengjia Zhao, Shengli Hu, Shibani Santurkar, Shraman Ray Chaudhuri, Shuyuan Zhang, Siyuan Fu, Spencer Papay, Steph Lin, Suchir Balaji, Suvansh Sanjeev, Szymon Sidor, Tal Broda, Aidan Clark, Tao Wang, Taylor Gordon, Ted Sanders, Tejal Patwardhan, Thibault Sottiaux, Thomas Degry, Thomas Dimson, Tianhao Zheng, Timur Garipov, Tom Stasi Trapit Bansal, Trevor Creech, Troy Peterson, Tyna Eloundou, Valerie Qi, Vineet Kosaraju, Vinnie Monaco, Vitchyr Pong, Vlad Fomenko, Weiyi Zheng, Wenda Zhou, Wes McCabe, Wojciech Zaremba, Yann Dubois, Yinghai Lu, Yining Chen, Young Cha, Yu Bai, Yuchen He, Yuchen Zhang, Yunyun Wang, Zheng Shao, and Zhuohan Li. Openai o1 system card, 2024. URL https://arxiv.org/abs/2412.16720.
+
+Kimi Team, Angang Du, Bofei Gao, Bowei Xing, Changjiu Jiang, Cheng Chen, Cheng Li, Chenjun Xiao, Chenzhuang Du, Chonghua Liao, Chuning Tang, Congcong Wang, Dehao Zhang, Enming Yuan, Enzhe Lu, Fengxiang Tang, Flood Sung, Guangda Wei, Guokun Lai, Haiqing Guo, Han Zhu, Hao Ding, Hao Hu, Hao Yang, Hao Zhang, Haotian Yao, Haotian Zhao, Haoyu Lu, Haoze Li, Haozhen Yu, Hongcheng Gao, Huabin Zheng, Huan Yuan, Jia Chen, Jianhang Guo, Jianlin Su, Jianzhou Wang, Jie Zhao, Jin Zhang, Jingyuan Liu, Junjie Yan, Junyan Wu, Lidong Shi, Ling Ye, Longhui Yu, Mengnan Dong, Neo Zhang, Ningchen Ma, Qiwei Pan, Qucheng Gong, Shaowei Liu, Shengling Ma, Shupeng Wei, Sihan Cao, Siying Huang, Tao Jiang, Weihao Gao, Weimin Xiong, Weiran He, Weixiao Huang, Wenhao Wu, Wenyang He, Xianghui Wei, Xianqing Jia, Xingzhe Wu, Xinran Xu, Xinxing Zu, Xinyu Zhou, Xuehai Pan, Y. Charles, Yang Li, Yangyang Hu, Yangyang Liu, Yanru Chen, Yejie Wang, Yibo Liu, Yidao Qin, Yifeng Liu, Ying Yang, Yiping Bao, Yulun Du, Yuxin Wu, Yuzhi Wang, Zaida Zhou, Zhaoji Wang, Zhaowei Li, Zhen Zhu, Zheng Zhang, Zhexu Wang, Zhilin Yang, Zhiqi Huang, Zihao Huang, Ziyao Xu, and Zonghan Yang. Kimi
+k1.5: Scaling reinforcement learning with llms, 2025. URL https://arxiv.org/abs/2501.12599.
+
+Richard S Sutton, David McAllester, Satinder Singh, and Yishay Mansour. Policy gradient methods for reinforcement learning with function approximation. In S. Solla, T. Leen, and K. Müller, editors, Advances in Neural Information Processing Systems, volume 12. MIT Press, 1999. URL https://proceedings.neurips.cc/paper_files/paper/1999/file/464d828b85b0bed98e80ade0a5c43b0f-Paper.pdf.
+
+Hugging Face. Open r1: A fully open reproduction of deepseek-r1, January 2025. URL https://github.com/huggingface/open-r1. 
+
+Weihao Zeng, Yuzhen Huang, Qian Liu, Wei Liu, Keqing He, Zejun Ma, and Junxian He. Simplerl-zoo: Investigating and taming zero reinforcement learning for open base models in the wild, 2025. URL https://arxiv.org/abs/2503.18892.
+
+Jiayi Pan, Junjie Zhang, Xingyao Wang, Lifan Yuan, Hao Peng, and Alane Suhr. Tinyzero. https://github.com/Jiayi-Pan/TinyZero, 2025. Accessed: 2025-01-24.
+
+An Yang, Beichen Zhang, Binyuan Hui, Bofei Gao, Bowen Yu, Chengpeng Li, Dayiheng Liu, Jianhong Tu, Jingren Zhou, Junyang Lin, Keming Lu, Mingfeng Xue, Runji Lin, Tianyu Liu, Xingzhang Ren, and Zhenru Zhang. Qwen2.5-math technical report: Toward mathematical expert model via self-improvement,
+2024. URL https://arxiv.org/abs/2409.12122.
+
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse, and John Schulman. Training verifiers to solve math word problems, 2021a. URL https://arxiv.org/abs/2110.14168.
+
+Nathan Lambert, Jacob Morrison, Valentina Pyatkin, Shengyi Huang, Hamish Ivison, Faeze Brahman, Lester James V. Miranda, Alisa Liu, Nouha Dziri, Shane Lyu, Yuling Gu, Saumya Malik, Victoria Graf, Jena D. Hwang, Jiangjiang Yang, Ronan Le Bras, Oyvind Tafjord, Chris Wilhelm, Luca Soldaini, Noah A. Smith, Yizhong Wang, Pradeep Dasigi, and Hannaneh Hajishirzi. Tulu 3: Pushing frontiers in open language model post-training, 2025. URL https://arxiv.org/abs/2411.15124.
+
+Zichen Liu, Changyu Chen, Wenjun Li, Penghui Qi, Tianyu Pang, Chao Du, Wee Sun Lee, and Min Lin. Understanding r1-zero-like training: A critical perspective, 2025. URL https://arxiv.org/abs/2503.20783.
+
+Woosuk Kwon, Zhuohan Li, Siyuan Zhuang, Ying Sheng, Lianmin Zheng, Cody Hao Yu, Joseph E. Gonzalez, Hao Zhang, and Ion Stoica. Effcient memory management for large language model serving with pagedattention, 2023. arXiv:2309.06180.
+
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser, Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse, and John Schulman. Training verifiers to solve math word problems, 2021b. arXiv:2110.14168.
+
+David Dohan, Winnie Xu, Aitor Lewkowycz, Jacob Austin, David Bieber, Raphael Gontijo Lopes, Yuhuai Wu, Henryk Michalewski, Rif A. Saurous, Jascha Sohl-dickstein, Kevin Murphy, and Charles Sutton. Language model cascades, 2022. URL https://arxiv.org/abs/2207.10342.
+
+Caglar Gulcehre, Tom Le Paine, Srivatsan Srinivasan, Ksenia Konyushkova, Lotte Weerts, Abhishek Sharma, Aditya Siddhant, Alex Ahern, Miaosen Wang, Chenjie Gu, Wolfgang Macherey, Arnaud Doucet, Orhan Firat, and Nando de Freitas. Reinforced self-training (rest) for language modeling, 2023. URL https://arxiv.org/abs/2308.08998.
+
+Joshua Achiam. Spinning up in deep reinforcement learning. 2018a. Nathan Lambert. Reinforcement learning from human feedback, 2024. URL https://rlhfbook.com.
+
+Sheldon M Ross. Simulation. academic press, 2022. Thomas Degris, Martha White, and Richard S. Sutton. Off-policy actor-critic, 2013. URL https://arxiv.org/abs/1205.4839.
+
+Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu, Junxiao Song, Xiao Bi, Haowei Zhang, Mingchuan Zhang, Y. K. Li, Y. Wu, and Daya Guo. Deepseekmath: Pushing the limits of mathematical reasoning in open language models, 2024. URL https://arxiv.org/abs/2402.03300.
+
+John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov. Proximal policy optimization algorithms, 2017. URL https://arxiv.org/abs/1707.06347.
+
+Joshua Achiam. Simplified ppo-clip objective, 2018b. URL https://drive.google.com/file/d/1PDzn9RPvaXjJFZkGeapMHbHGiWWW20Ey/view.
+
+Qiying Yu, Zheng Zhang, Ruofei Zhu, Yufeng Yuan, Xiaochen Zuo, Yu Yue, Tiantian Fan, Gaohong Liu, Lingjun Liu, Xin Liu, Haibin Lin, Zhiqi Lin, Bole Ma, Guangming Sheng, Yuxuan Tong, Chi Zhang, Mofan Zhang, Wang Zhang, Hang Zhu, Jinhua Zhu, Jiaze Chen, Jiangjie Chen, Chengyi Wang, Hongli Yu, Weinan Dai, Yuxuan Song, Xiangpeng Wei, Hao Zhou, Jingjing Liu, Wei-Ying Ma, Ya-Qin Zhang, Lin Yan, Mu Qiao, Yonghui Wu, and Mingxuan Wang. Dapo: An open-source llm reinforcement learning system at scale, 2025. URL https://arxiv.org/abs/2503.14476.
+
+NTT123. Grpo-zero. https://github.com/policy-gradient/GRPO-Zero, 2025. Accessed: 2025-05-22.
