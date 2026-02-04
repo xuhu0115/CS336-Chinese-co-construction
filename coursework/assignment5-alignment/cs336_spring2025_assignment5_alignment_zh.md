@@ -635,7 +635,7 @@ $$
 接下来，让我们尝试使用期望回报上的梯度上升来学习策略参数 $\theta$：
 
 $$
-\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). \quad (9)
+\theta_{k+1} = \theta_k + \alpha \nabla_\theta J(\theta_k). &emsp;&emsp; (9)
 $$
 
 我们将使用的核心恒等式是下面所示的 **REINFORCE 策略梯度**。
@@ -647,23 +647,27 @@ $$
 **推导策略梯度。** 我们是如何得到这个方程的？为了完整性，我们将在下面给出这个恒等式的推导。我们将用到几个恒等式。
 1.  轨迹的概率由下式给出
 
-    $$
-    P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)
-    $$
+$$
+P(\tau | \theta) = \rho_0(s_0) \prod_{t=0}^{T} P(s_{t+1} | s_t, a_t) \pi_\theta(a_t | s_t). \quad (11)
+$$
 
     因此，轨迹的对数概率为：
     
-    $$
-    \log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)
-    $$
+$$
+\log P(\tau | \theta) = \log \rho_0(s_0) + \sum_{t=0}^{T} [\log P(s_{t+1} | s_t, a_t) + \log \pi_\theta(a_t | s_t)]. \quad (12)
+$$
 
 2.  **对数导数技巧**（log-derivative trick）：
     
-    $$
-    \nabla_\theta P = P \nabla_\theta \log P. \quad (13)
-    $$
+$$
+\nabla_\theta P = P \nabla_\theta \log P. \quad (13)
+$$
 
-3.  **环境项在 $\theta$ 中是常数**。 $\rho_0$ 、 $P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 $\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)$
+3.  **环境项在 $\theta$ 中是常数**。 $\rho_0$ 、 $P(\cdot|\cdot)$ 和 $R(\tau)$ 不依赖于策略参数，所以 
+
+$$
+\nabla_\theta \rho_0 = \nabla_\theta P = \nabla_\theta R(\tau) = 0. \quad (14)
+$$
 
 应用以上事实：
 
@@ -678,11 +682,19 @@ $$
 $$
 
 因此，代入轨迹的对数概率并利用环境项在 $\theta$ 中是常数这一事实，我们得到了原始的或 REINFORCE 策略梯度：
-$$\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (20)$$
+
+$$
+\nabla_\theta J(\pi_\theta) = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right]. \quad (20)
+$$
+
 直观地说，这个梯度会增加高回报轨迹中每个动作的对数概率，反之则会降低它们。
 
 **梯度的样本估计。** 给定一个通过从起始状态 $s^{(i)}_0 \sim \rho_0(s_0)$ 采样，然后在环境中运行策略 $\pi_\theta$ 收集的 $N$ 个 rollout 批次 $\mathcal{D} = \{\tau^{(i)}\}_{i=1}^N$，我们形成梯度的无偏估计为
-$$\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (21)$$
+
+$$
+\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (21)
+$$
+
 该向量用于梯度上升更新 $\theta \leftarrow \theta + \alpha \hat{g}$。
 
 ### 6.5 策略梯度基线
@@ -690,19 +702,39 @@ $$\hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\th
 原始策略梯度的主要问题是梯度估计的方差很高。减轻此问题的一种常用技术是从奖励中减去一个仅依赖于状态的**基线函数**（baseline function）$b$。这是一种**控制变量**（control variate）[Ross, 2022]：其思想是通过减去一个与它相关的项来降低估计器的方差，同时不引入偏差。
 
 让我们将基于基线的策略梯度定义为：
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) (R(\tau) - b(s_t)) \right]. \quad (22)$$
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) (R(\tau) - b(s_t)) \right]. \quad (22)
+$$
+
 作为一个例子，一个合理的基线是**策略价值函数**（on-policy value function）$V^\pi(s) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau) | s_t = s]$，即如果我们从 $s_t = s$ 开始并遵循策略 $\pi_\theta$，期望的回报是多少。那么，量 $(R(\tau) - V^\pi(s_t))$ 直观上表示实际轨迹比预期好多少。
 
 只要基线只依赖于状态，基于基线的策略梯度就是无偏的。我们可以通过将基于基线的策略梯度重写为
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right]. \quad (23)$$
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right]. \quad (23)
+$$
+
 专注于基线项，我们看到
-$$\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right] = \sum_{t=0}^{T} \mathbb{E}_{s_t} \left[ b(s_t) \mathbb{E}_{a_t \sim \pi_\theta(\cdot|s_t)} [\nabla_\theta \log \pi_\theta(a_t | s_t)] \right]. \quad (24)$$
-一般来说，**得分函数**（score function）的期望为零：$\mathbb{E}_{x \sim P_\theta}[\nabla_\theta \log P_\theta(x)] = 0$。因此，公式 (24) 中的表达式为零，并且
-$$B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - 0 = \nabla_\theta J(\pi_\theta), \quad (25)$$
+
+$$
+\mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) b(s_t) \right] = \sum_{t=0}^{T} \mathbb{E}_{s_t} \left[ b(s_t) \mathbb{E}_{a_t \sim \pi_\theta(\cdot|s_t)} [\nabla_\theta \log \pi_\theta(a_t | s_t)] \right]. \quad (24)
+$$
+
+一般来说，**得分函数**（score function）的期望为零：$\mathbb{E}_{x \sim P_\theta}[\nabla_\theta \log P_\theta(x)] = 0$ 。因此，公式 (24) 中的表达式为零，并且
+
+$$
+B = \mathbb{E}_{\tau \sim \pi_\theta} \left[ \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a_t|s_t) R(\tau) \right] - 0 = \nabla_\theta J(\pi_\theta), \quad (25)
+$$
+
 所以我们得出结论，基于基线的策略梯度是无偏的。我们稍后将运行一个实验，看看基线是否能提高下游性能。
 
 **关于策略梯度“损失”的说明。** 当我们在 PyTorch 这样的框架中实现策略梯度方法时，我们将定义一个所谓的**策略梯度损失**（pg_loss），使得调用 `pg_loss.backward()` 会用我们近似的策略梯度 $\hat{g}$ 填充模型参数的梯度缓冲区。用数学语言表达，即
-$$\text{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) (R(\tau^{(i)}) - b(s^{(i)}_t)). \quad (26)$$
+
+$$
+\text{pg\_loss} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) (R(\tau^{(i)}) - b(s^{(i)}_t)). \quad (26)
+$$
+
 `pg_loss` 在规范意义上并不是一个损失——报告 `pg_loss` 作为训练或验证集上的评估指标是没有意义的，一个好的验证 `pg_loss` 并不表示我们的模型泛化得很好。`pg_loss` 实际上只是一个标量，当我们调用 `pg_loss.backward()` 时，通过反向传播得到的梯度就是近似的策略梯度 $\hat{g}$。
 
 进行 RL 时，你应该始终记录和报告训练和验证奖励。这些是“有意义”的评估指标，也是我们试图用策略梯度方法优化的目标。
@@ -717,7 +749,11 @@ REINFORCE 是一种**同策略**（on-policy）算法：训练数据是由我们
 我们需要进行大量的推理来采样一个新的 rollout 批次，却只进行一次梯度步骤。LM 的行为通常在单个步骤中不会发生显著变化，因此这种在策略的方法效率非常低。
 
 **异策略策略梯度**（Off-policy policy gradient）。在离策略学习中，我们使用的 rollout 是从不同于我们正在优化的策略中采样的。PPO 和 GRPO 等流行的策略梯度算法的离策略变体使用来自策略 $\pi_\theta$ 的先前版本 $\pi_{\theta_{\text{old}}}$ 的 rollout 来优化当前策略 $\pi_\theta$。离策略策略梯度估计为
-$$\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (27)$$
+
+$$
+\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (27)
+$$
+
 这看起来像是原始策略梯度的重要性采样版本，带有重加权项 $\frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)}$。
 
 事实上，可以通过重要性采样并应用一个合理的近似来推导公式 (27)，只要 $\pi_\theta$ 和 $\pi_{\theta_{\text{old}}}$ 不是太不同即可：更多细节请参见 Degris 等人 [2013]。
@@ -732,7 +768,11 @@ $$\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{
 
 对于一个问题 $q$ 和从 $\pi_\theta$ 采样的一组输出 $\{o^{(i)}\}_{i=1}^G$，令 $r^{(i)} = R(q, o^{(i)})$ 为第 $i$ 个输出的奖励。
 DeepSeekMath [Shao 等人, 2024] 和 DeepSeek R1 [DeepSeek-AI 等人, 2025] 计算第 $i$ 个输出的**分组归一化奖励**（group-normalized reward）为
-$$A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage\_eps}}, \quad (28)$$
+
+$$
+A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage\_eps}}, \quad (28)
+$$
+
 其中 `advantage_eps` 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
 
 **高级算法**（High-level algorithm）。在深入探讨 GRPO 目标之前，让我们首先通过写出 Shao 等人 [2024] 的算法 3 来了解训练循环的整体思路。
@@ -745,13 +785,25 @@ $$A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{s
 裁剪的目的是在对单个 rollout 批次进行多次梯度步骤时保持稳定性。它通过阻止策略 $\pi_\theta$ 过度偏离旧策略来实现。
 
 让我们首先写出完整的 GRPO-Clip 目标，然后我们可以构建一些关于裁剪作用的直觉：
-$$J_{\text{GRPO-Clip}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{o^{(i)}\}_{i=1}^G \sim \pi_\theta(\cdot|q)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o^{(i)}|} \sum_{t=1}^{|o^{(i)}|} \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, \text{clip}\left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A^{(i)} \right) \right]. \quad (29)$$
+
+$$
+J_{\text{GRPO-Clip}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{o^{(i)}\}_{i=1}^G \sim \pi_\theta(\cdot|q)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o^{(i)}|} \sum_{t=1}^{|o^{(i)}|} \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, \text{clip}\left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A^{(i)} \right) \right]. \quad (29)
+$$
+
 超参数 $\epsilon > 0$ 控制策略可以改变的程度。为了看到这一点，我们可以按照 Achiam [2018a,b] 的方式重写每个 token 的目标。定义函数
 $$g(\epsilon, A^{(i)}) = \begin{cases} (1+\epsilon)A^{(i)} & \text{if } A^{(i)} \geq 0 \\ (1-\epsilon)A^{(i)} & \text{if } A^{(i)} < 0. \end{cases} \quad (30)$$
 我们可以将每个 token 的目标重写为
-$$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, g(\epsilon, A^{(i)}) \right)$$
+
+$$
+\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})} A^{(i)}, g(\epsilon, A^{(i)}) \right)
+$$
+
 我们现在可以分情况讨论。当优势 $A^{(i)}$ 为正时，每个 token 的目标简化为
-$$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.$$
+
+$$
+\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.
+$$
+
 由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t}) > (1+\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\text{old}}}$。
 
 类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
@@ -765,7 +817,11 @@ $$\text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i
 **计算优势**（分组归一化奖励）。首先，我们将实现逻辑来计算 rollout 批次中每个示例的优势，即分组归一化的奖励。我们将考虑两种可能的获得分组归一化奖励的方法：上面在公式 (28) 中提出的和最近的一种简化方法。
 
 Dr. GRPO [Liu 等人, 2025] 指出，通过 $\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)})$ 对奖励进行归一化会奖励批次中答案正确性变化较小的问题，这可能是不理想的。他们建议简单地移除归一化步骤，计算
-$$A^{(i)} = r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)}). \quad (31)$$
+
+$$
+A^{(i)} = r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)}). \quad (31)
+$$
+
 我们将实现这两种变体，并在作业的后面比较它们的性能。
 
 **问题（compute_group_normalized_rewards）：分组归一化（2 分）**
@@ -804,7 +860,10 @@ def compute_group_normalized_rewards(
 作为一个提醒/免责声明，这些在规范意义上并不是真正的损失，不应该作为评估指标报告。说到 RL，你应该跟踪训练和验证回报以及其他指标（参见第 6.5 节的讨论）。
 
 我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是
-$$-A_t \cdot \log p_\theta(o_t | q, o_{<t}). \quad (32)$$
+
+$$
+-A_t \cdot \log p_\theta(o_t | q, o_{<t}). \quad (32)
+$$
 
 **问题（compute_naive_policy_gradient_loss）：朴素策略梯度（1 分）**
 **交付物：** 实现一个 `compute_naive_policy_gradient_loss` 方法，使用原始奖励或预先计算的优势来计算每个 token 的策略梯度损失。
@@ -830,7 +889,10 @@ def compute_naive_policy_gradient_loss(
 
 **GRPO-Clip 损失**（GRPO-Clip loss）。接下来，我们将实现更有趣的 GRPO-Clip 损失。
 每个 token 的 GRPO-Clip 损失是
-$$-\min \left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})} A_t, \text{clip}\left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). \quad (33)$$
+
+$$
+-\min \left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})} A_t, \text{clip}\left( \frac{\pi_\theta(o_t|q, o_{<t})}{\pi_{\theta_{\text{old}}}(o_t|q, o_{<t})}, 1 - \epsilon, 1 + \epsilon \right) A_t \right). \quad (33)
+$$
 
 **问题（compute_grpo_clip_loss）：GRPO-Clip 损失（2 分）**
 **交付物：** 实现一个 `compute_grpo_clip_loss` 方法，计算每个 token 的 GRPO-Clip 损失。
