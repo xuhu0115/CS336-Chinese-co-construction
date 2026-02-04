@@ -776,9 +776,14 @@ $$
 DeepSeekMath [Shao 等人, 2024] 和 DeepSeek R1 [DeepSeek-AI 等人, 2025] 计算第 $i$ 个输出的**分组归一化奖励**（group-normalized reward）为
 
 $$
-A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, 
-r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage\_{eps}}} &emsp;&emsp;(28)
+A^{(i)} = 
+\frac{
+  r^{(i)} - \operatorname{mean}\!\left(r^{(1)}, r^{(2)}, \dots, r^{(G)}\right)
+}{
+  \operatorname{std}\!\left(r^{(1)}, r^{(2)}, \dots, r^{(G)}\right) + \varepsilon_{\text{adv}}
+}
 $$
+&emsp;&emsp;(28)
 
 其中 `advantage_eps` 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
 
@@ -798,7 +803,11 @@ J_{\text{GRPO-Clip}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{o^{(i)}\}_{i=1}
 $$
 
 超参数 $\epsilon > 0$ 控制策略可以改变的程度。为了看到这一点，我们可以按照 Achiam [2018a,b] 的方式重写每个 token 的目标。定义函数
-$$g(\epsilon, A^{(i)}) = \begin{cases} (1+\epsilon)A^{(i)} & \text{if } A^{(i)} \geq 0 \\ (1-\epsilon)A^{(i)} & \text{if } A^{(i)} < 0. \end{cases} \quad (30)$$
+
+$$
+g(\epsilon, A^{(i)}) = \begin{cases} (1+\epsilon)A^{(i)} & \text{if } A^{(i)} \geq 0 \\ (1-\epsilon)A^{(i)} & \text{if } A^{(i)} < 0. \end{cases} \quad (30)
+$$
+
 我们可以将每个 token 的目标重写为
 
 $$
