@@ -52,7 +52,7 @@
 
 ### 2.2 安装步骤
 
-如同官方作业，我们分两步安装（先跳过 `flash-attn` 再整体安装）：
+遵循官方作业的步骤，我们分两步安装（先跳过 `flash-attn` 再整体安装）：
 
 ```bash
 uv sync --no-install-package flash-attn
@@ -111,7 +111,7 @@ uv run python cs336_alignment/evaluate_math.py
 
 这些结果可以直接用于回答讲义中关于 **(1,1)/(1,0)/(0,0)** 三类样本数量与误差来源分析的问题。
 
-### 4.2 SFT 实验（对应讲义 §4）
+### 3.2 SFT 实验（对应讲义 §4）
 
 - 脚本：`cs336_alignment/sft_math_reasoning.py`
 - 功能：
@@ -131,7 +131,7 @@ uv run python cs336_alignment/sft_math_reasoning.py
   - `results.jsonl`：每次评估的详细生成与奖励
   - 通过 `wandb` 记录的训练 / 评估曲线（loss、acc、熵等）
 
-### 4.3 专家迭代（Expert Iteration，对应讲义 §5）
+### 3.3 专家迭代（Expert Iteration，对应讲义 §5）
 
 - 脚本：`cs336_alignment/sft_math_reasoning_ei.py`
 - 功能：
@@ -152,7 +152,7 @@ uv run python cs336_alignment/sft_math_reasoning_ei.py
 
 这些结果可用于回答讲义中关于 **专家迭代提升、与纯 SFT 对比** 的问题。
 
-### 4.4 GRPO 及消融实验（对应讲义 §6–8）
+### 3.4 GRPO 及消融实验（对应讲义 §6–8）
 
 - 核心脚本：`cs336_alignment/grpo_experiments.py`
 - 该脚本使用 **Typer** 提供命令行接口，包含：
@@ -196,7 +196,7 @@ uv run python cs336_alignment/grpo_experiments.py lr-sweep
 
 ---
 
-## 5. 写作与提交（课程要求）
+## 4. 写作与提交（课程要求）
 
 若完全按 Stanford CS336 的作业要求来完成，你最终需要提交：
 
@@ -218,7 +218,7 @@ uv run python cs336_alignment/grpo_experiments.py lr-sweep
 
 ---
 
-## 6. 常见问题（FAQ）
+## 5. 常见问题（FAQ）
 
 - **Q：刚装好环境就 `ImportError` / `CUDA error`？**
   - 请确认：
