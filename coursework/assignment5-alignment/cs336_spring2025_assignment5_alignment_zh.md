@@ -311,7 +311,6 @@ def tokenize_prompt_and_output(
 
 **记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为
 
-
 $$
 H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x). \tag{1}
 $$
