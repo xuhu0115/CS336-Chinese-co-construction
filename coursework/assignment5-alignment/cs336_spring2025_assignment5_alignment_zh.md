@@ -869,10 +869,10 @@ def compute_group_normalized_rewards(
 **朴素策略梯度损失**（Naive policy gradient loss）。接下来，我们将实现一些用于计算“损失”的方法。
 作为一个提醒/免责声明，这些在规范意义上并不是真正的损失，不应该作为评估指标报告。说到 RL，你应该跟踪训练和验证回报以及其他指标（参见第 6.5 节的讨论）。
 
-我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是
+我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是：
 
 $$
--A_t \cdot \log p_\theta(o_t \mid q, o_{<t}) &emsp;&emsp;(32)
+-A_t \cdot \log p_\theta(o_t \mid q, o_{\lt t}) \tag{32}
 $$
 
 **问题（compute_naive_policy_gradient_loss）：朴素策略梯度（1 分）**
