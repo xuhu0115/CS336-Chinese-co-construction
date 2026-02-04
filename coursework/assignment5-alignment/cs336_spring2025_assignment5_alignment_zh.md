@@ -871,7 +871,7 @@ def compute_group_normalized_rewards(
 
 我们将从**朴素策略梯度损失**开始，它只是将优势与动作的对数概率相乘（并取负）。对于问题 $q$、响应 $o$ 和响应 token $o_t$，朴素的每个 token 策略梯度损失是
 
-$$ -A_t \cdot \log p_\theta(o_t \mid q, o_{<t}) &emsp;&emsp;(32)$$
+$$ -A_t \cdot \log p_\theta(o_{t} \mid q, o_{<t}) &emsp;&emsp;(32)$$
 
 **问题（compute_naive_policy_gradient_loss）：朴素策略梯度（1 分）**
 **交付物：** 实现一个 `compute_naive_policy_gradient_loss` 方法，使用原始奖励或预先计算的优势来计算每个 token 的策略梯度损失。
