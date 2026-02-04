@@ -746,17 +746,17 @@ $$
 REINFORCE 是一种**同策略**（on-policy）算法：训练数据是由我们正在优化的相同策略收集的。为了说明这一点，让我们写出 REINFORCE 算法：
 1.  从当前策略 $\pi_\theta$ 中采样一批 rollout $\{\tau^{(i)}\}_{i=1}^N$。
 2.  将策略梯度近似为 $\nabla_\theta J(\pi_\theta) \approx \hat{g} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)})$。
-3.  使用计算出的梯度更新策略参数：$\theta \leftarrow \theta + \alpha \hat{g}$。
+3.  使用计算出的梯度更新策略参数： $\theta \leftarrow \theta + \alpha \hat{g}$ 。
 
 我们需要进行大量的推理来采样一个新的 rollout 批次，却只进行一次梯度步骤。LM 的行为通常在单个步骤中不会发生显著变化，因此这种在策略的方法效率非常低。
 
 **异策略策略梯度**（Off-policy policy gradient）。在离策略学习中，我们使用的 rollout 是从不同于我们正在优化的策略中采样的。PPO 和 GRPO 等流行的策略梯度算法的离策略变体使用来自策略 $\pi_\theta$ 的先前版本 $\pi_{\theta_{\text{old}}}$ 的 rollout 来优化当前策略 $\pi_\theta$。离策略策略梯度估计为
 
 $$
-\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). \quad (27)
+\hat{g}_{\text{off-policy}} = \frac{1}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)} \nabla_\theta \log \pi_\theta(a^{(i)}_t | s^{(i)}_t) R(\tau^{(i)}). &emsp;&emsp;(27)
 $$
 
-这看起来像是原始策略梯度的重要性采样版本，带有重加权项 $\frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)}$。
+这看起来像是原始策略梯度的重要性采样版本，带有重加权项 $\frac{\pi_\theta(a^{(i)}_t | s^{(i)}_t)}{\pi_{\theta_{\text{old}}}(a^{(i)}_t | s^{(i)}_t)}$ 。
 
 事实上，可以通过重要性采样并应用一个合理的近似来推导公式 (27)，只要 $\pi_\theta$ 和 $\pi_{\theta_{\text{old}}}$ 不是太不同即可：更多细节请参见 Degris 等人 [2013]。
 
