@@ -312,7 +312,7 @@ def tokenize_prompt_and_output(
 **记录每 token 熵**。 进行 RL 时，跟踪每个 token 的熵通常很有用，以查看模型的预测分布是否变得（过度）自信。我们现在将实现这一点，并比较我们的每种微调方法对模型预测熵的影响。 离散分布 $p(x)$ (其支撑集为 X )的熵定义为：
 
 $$
-H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x)
+H(p) = - \sum_{x \in \mathcal{X}} p(x) \log p(x) &emsp;&emsp; (1)
 $$
 
 给定我们 SFT 或 RL 模型的 logits，我们将计算每个 token 的熵，即每个下一个 token 预测的熵。
@@ -565,7 +565,7 @@ sampling_params = SamplingParams(
 有参数 θ 的因果语言模型（LM）定义了给定当前文本前缀 $s_t$ （状态/观测）的下一个 token $a_t$ ∈ V 的概率分布。在 RL 的上下文中，我们将下一个 token $a_t$ 视为动作，将当前文本前缀 $s_t$ 视为状态。因此，LM 是一个分类随机策略
 
 $$
-a_t ∼ πθ(· | s_t), πθ(a_t | s_t) = [softmax(f_θ(s_t))]_{a_t}.  (3)
+a_t ∼ πθ(· | s_t), πθ(a_t | s_t) = [softmax(f_θ(s_t))]_{a_t}.  &emsp;&emsp; (3)
 $$
 
 在使用策略梯度优化策略时，需要两个基本操作：
@@ -580,7 +580,7 @@ $$
 一个（有限时域）轨迹是代理（agent）经历的状态和动作的交错序列：
 
 $$
-τ = (s_0, a_0, s_1, a_1, ..., s_T, a_T), (4)
+τ = (s_0, a_0, s_1, a_1, ..., s_T, a_T), &emsp;&emsp; (4)
 $$
 
 其中 T 是轨迹的长度，即 $a_T$ 是一个文本结束 token，或者我们已经达到了最大生成 token 预算。
