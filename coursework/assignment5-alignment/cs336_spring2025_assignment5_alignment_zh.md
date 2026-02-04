@@ -779,7 +779,7 @@ $$
 A^{(i)} = \frac{r^{(i)} - \text{mean}(r^{(1)}, r^{(2)}, ..., r^{(G)})}{\text{std}(r^{(1)}, r^{(2)}, ..., r^{(G)}) + \text{advantage}_{\epsilon}} \qquad (28)
 $$
 
-其中 `advantage_eps` 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
+其中 $advantage_{\epsilon}$ 是一个防止除零的小常数。请注意，这个优势 $A^{(i)}$ 对于响应中的每个 token 都是相同的，即 $A^{(i)}_t = A^{(i)}, \forall t \in 1, ..., |o^{(i)}|$，因此在下文中我们将省略下标 $t$。
 
 **高级算法**（High-level algorithm）。在深入探讨 GRPO 目标之前，让我们首先通过写出 Shao 等人 [2024] 的算法 3 来了解训练循环的整体思路。
 
@@ -814,9 +814,9 @@ $$
 \text{per-token objective} = \min \left( \frac{\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})}{\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})}, 1 + \epsilon \right) A^{(i)}.
 $$
 
-由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t}) > (1+\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\text{old}}}$。
+由于 $A^{(i)} > 0$，如果动作 $o^{(i)}$ 在 $\pi_\theta$ 下变得更有可能，即如果 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$ 增加，目标就会上升。`min` 的裁剪限制了目标可以增加的程度：一旦 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t}) > (1+\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$ ，这个每个 token 的目标就达到了其最大值 $(1+\epsilon)A^{(i)}$ 。因此，策略 $\pi_\theta$ 没有动力远离旧策略 $\pi_{\theta_{\text{old}}}$ 。
 
-类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
+类似地，当优势 $A^{(i)}$ 为负时，模型试图降低 $\pi_\theta(o^{(i)}_t | q, o^{(i)}_{<t})$ ，但不会激励它将其降低到 $(1-\epsilon)\pi_{\theta_{\text{old}}}(o^{(i)}_t | q, o^{(i)}_{<t})$ 以下（完整的论证请参阅 Achiam [2018b]）。
 
 ![](images/algorithm3_GRPO.png)
 
