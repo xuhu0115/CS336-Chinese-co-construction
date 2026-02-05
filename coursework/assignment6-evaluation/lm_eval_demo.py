@@ -6,8 +6,8 @@ os.environ["HF_ALLOW_CODE_EVAL"] = "1"
 
 # eval_model_path = "/home/magnus-share/xuhu/model/Qwen2___5-Math-1___5B"
 eval_model_path = "openai-community/gpt2"
-zero_shot_tasks = ["arc_easy", "piqa", "lambada", "triviaqa"]
-few_shot_tasks = ["humaneval", "mbpp", "gsm8k", "minerva_math"]
+zero_shot_tasks = ["arc_easy", "piqa", "lambada", "triviaqa"] # 常识推理+语言理解
+few_shot_tasks = ["humaneval", "mbpp", "gsm8k", "minerva_math"] # 代码+数学
 all_results = {}
 
 # 🔥 关键：只创建一次模型实例
