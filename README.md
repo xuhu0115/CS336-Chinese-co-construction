@@ -139,7 +139,7 @@ CS336-Chinese-co-construction/
       <td>
          <a href="https://github.com/1iyouzhen"><img width="70" height="70" src="https://github.com/1iyouzhen.png?s=40" alt="pic"></a><br>
          <a href="https://github.com/1iyouzhen">x</a>
-         <p>项目负责人<br> x <br>负责内容：第2、5、10、11、13章；作业1、3； </p>
+         <p>项目负责人<br> Datawhale-鲸英助教 <br>负责内容：第2、5、10、11、13章；作业1、3； </p>
       </td>
     </tr>
   </tbody>
