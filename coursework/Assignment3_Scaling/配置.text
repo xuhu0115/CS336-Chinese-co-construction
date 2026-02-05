@@ -1,0 +1,17 @@
+ embedding params(N) = 12*num_layers*(d_model^2)
+ total params = non embedding params + embedding params
+experiments:
+  - total params: 大概70M
+    d_model: 384
+    num_layers: 24
+    num_heads: 6
+
+  - total params: 大概130M
+    d_model: 512
+    num_layers: 36
+    num_heads: 8
+
+  - total params: 大概300M
+    d_model: 768
+    num_layers: 36
+    num_heads: 12
