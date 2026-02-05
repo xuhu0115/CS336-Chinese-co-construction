@@ -1,0 +1,1 @@
+Document 5 doesn't have any line-level duplicates.
