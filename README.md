@@ -1,8 +1,30 @@
-# CS336 中文共建课程
+<div align='center'>
+    <img src="./images/head.jpg" alt="alt text" width="100%">
+    <h1>Diy-LLM</h1>
+</div>
 
-> 一座为中文学习者量身打造的"LLM炼丹工坊"
+<div align="center">
+  <img src="https://img.shields.io/github/stars/xuhu0115/diy-llm?style=flat&logo=github" alt="GitHub stars"/>
+  <img src="https://img.shields.io/github/forks/xuhu0115/diy-llm?style=flat&logo=github" alt="GitHub forks"/>
+  <img src="https://img.shields.io/badge/language-Chinese-brightgreen?style=flat" alt="Language"/>
+  <a href="https://github.com/xuhu0115/diy-llm"><img src="https://img.shields.io/badge/GitHub-Project-blue?style=flat&logo=github" alt="GitHub Project"></a>
+</div>
 
-我们希望这门CS336中文课程，不只是斯坦福原版的"汉化版"，而是一座为中文学习者量身打造的"LLM炼丹工坊"。在这里，你亲手锻造理解、打磨代码、调控火候，最终炼出属于自己的大模型真丹。
+<div align="center">
+  <p><a href="https://github.com/xuhu0115/diy-llm">📚 在线阅读地址</a></p>
+  <h3>📚 带你系统性学习大语言模型</h3>
+  <p><em>一座为中文学习者量身打造的"LLM炼丹工坊"</em></p>
+</div>
+
+我们希望这门 CS336 中文课程，不只是斯坦福原版的"汉化版"，而是一座为中文学习者量身打造的"LLM炼丹工坊"。在这里，你亲手锻造理解、打磨代码、调控火候，最终炼出属于自己的大模型真丹。
+
+## 📋 前置要求
+
+- **Python 编程**：熟练掌握 Python 和软件工程能力
+- **深度学习基础**：熟悉 PyTorch，了解神经网络基本原理
+- **数学基础**：线性代数、概率统计、微积分
+- **机器学习**：需对机器学习与深度学习的基础知识有扎实掌握
+- **GPU 编程（可选）**：了解 CUDA 基础概念会更佳，不懂也没关系，本项目也有入门教程
 
 ## 📚 课程愿景
 
@@ -22,48 +44,54 @@
 
 ## 📖 课程目录
 
-| 章节 | 关键内容 | 作业 |
-| --- | --- | --- |
-| [前言](docs/前言.md) | 项目的由来、背景及读者建议	| - |
-| [第1章 工具使用](docs/chapter1) | W&B 使用与实验追踪 | - |
-| [第2章 分词器](docs/chapter2/chapter2_分词器.md) | 分词器原理与 BPE 实现 | [作业 1](coursework/assignment1-basics/) |
-| [第3章 PyTorch 与资源核算](docs/chapter3/) | 训练原语、算力/显存估算 | - |
-| [第4章 语言模型架构与训练细节](docs/chapter4/chapter4_第四章语言模型架构和训练的技术细节.md) | Transformer 架构与训练要点 | [作业 1](coursework/assignment1-basics/)|
-| [第5章 混合专家模型](docs/chapter5/chapter5_混合专家模型.md) | MoE 原理、路由与工程实践 | - |
-| [第6章 GPU 与相关优化](docs/chapter6/chapter6_第六章GPU和GPU相关的优化.md) | GPU 基础与优化技巧 | [作业 2](coursework/assignment2-systems/) |
-| [第7章 GPU 高性能编程](docs/chapter7/chapter7_第七章GPU高性能编程.md) | CUDA 与高性能编程 | [作业 2](coursework/assignment2-systems/) |
-| [第8章 分布式训练](docs/chapter8/chapter8_第八章分布式训练.md) | 并行范式与跨机训练 | [作业 2](coursework/assignment2-systems/) |
-| [第9章 Scaling Laws](docs/chapter9/chapter9_Scaling_Laws.md) | 扩展定律与实验 | [作业 3](coursework/assignment3-scaling/) |
-| [第10章 推理](docs/chapter10/推理.md) | 推理性能与落地优化 | [作业 6](coursework/assignment6-evaluation/) |
-| [第11章 数据工程](docs/chapter11/chapter11_数据工程.md) | 数据清洗、构建与管理 | [作业 4](coursework/assignment4-data/) |
-| [第12章 评估与基准测试](docs/chapter12/chapter12_评估与基准测试.md) | 指标体系与评测方法 | [作业 6](coursework/assignment6-evaluation/) |
-| [第13章 大模型的基本训练流程](docs/chapter13/chapter13_第十三章大模型的基本训练流程.md) | 预训练、SFT、RL 流程 | [作业 5](coursework/assignment5-alignment/) |
-| [第14章 可验证奖励的强化学习](docs/chapter14/chapter14_可验证奖励的强化学习.md) | RLVR 思想与实践 | [作业 5](coursework/assignment5-alignment/) |
+| 章节 | 关键内容 | 配套作业 | 状态 |
+|------|----------|----------|------|
+| [前言](docs/前言.md) | 项目由来、背景及学习建议 | - | ✅ |
+| [第1章 工具使用](docs/chapter1) | W&B 使用与实验追踪 | - | ✅ |
+| [第2章 分词器](docs/chapter2/chapter2_分词器.md) | 分词器原理与 BPE 实现 | [作业1](coursework/assignment1-basics/) | ✅ |
+| [第3章 PyTorch 与资源核算](docs/chapter3/) | 训练原语、算力/显存估算 | - | ✅ |
+| [第4章 语言模型架构与训练细节](docs/chapter4/chapter4_第四章语言模型架构和训练的技术细节.md) | Transformer 架构与训练要点 | [作业1](coursework/assignment1-basics/) | ✅ |
+| [第5章 混合专家模型](docs/chapter5/chapter5_混合专家模型.md) | MoE 原理、路由与工程实践 | - | ✅ |
+| [第6章 GPU 与相关优化](docs/chapter6/chapter6_第六章GPU和GPU相关的优化.md) | GPU 基础与优化技巧 | [作业2](coursework/assignment2-systems/) | ✅ |
+| [第7章 GPU 高性能编程](docs/chapter7/chapter7_第七章GPU高性能编程.md) | CUDA 与高性能编程 | [作业2](coursework/assignment2-systems/) | ✅ |
+| [第8章 分布式训练](docs/chapter8/chapter8_第八章分布式训练.md) | 并行范式与跨机训练 | [作业2](coursework/assignment2-systems/) | ✅ |
+| [第9章 Scaling Laws](docs/chapter9/chapter9_Scaling_Laws.md) | 扩展定律与实验 | [作业3](coursework/assignment3-scaling/) | ✅ |
+| [第10章 推理](docs/chapter10/推理.md) | 推理性能与落地优化 | [作业6](coursework/assignment6-evaluation/) | ✅ |
+| [第11章 数据工程](docs/chapter11/chapter11_数据工程.md) | 数据清洗、构建与管理 | [作业4](coursework/assignment4-data/) | ✅ |
+| [第12章 评估与基准测试](docs/chapter12/chapter12_评估与基准测试.md) | 指标体系与评测方法 | [作业6](coursework/assignment6-evaluation/) | ✅ |
+| [第13章 大模型的基本训练流程](docs/chapter13/chapter13_第十三章大模型的基本训练流程.md) | 预训练、SFT、RL 流程 | [作业5](coursework/assignment5-alignment/) | ✅ |
+| [第14章 可验证奖励的强化学习](docs/chapter14/chapter14_可验证奖励的强化学习.md) | RLVR 思想与实践 | [作业5](coursework/assignment5-alignment/) | ✅ |
+| [第15章 扩展内容](docs/chapter15/) | - | - | 🚧 |
 
-| 作业 | 关键内容 |
-| --- | --- | 
-| [作业 1](coursework/assignment1-basics/) | 实现训练标准 Transformer 语言模型所需的所有组件（tokenizer、model architecture、optimizer），并训练一个极简语言模型	 | 
-| [作业 2](coursework/assignment2-systems/) | 对模型进行性能分析与基准测试；用 Triton 自行实现 FlashAttention-2；构建内存高效、分布式版本的训练代码	 | 
-| [作业 3](coursework/assignment3-scaling/) | 理解 Transformer 各组件功能；拟合模型缩放律（scaling law）以预测模型扩展效果 | 
-| [作业 4](coursework/assignment4-data/) | 将原始 Common Crawl 数据转储转换为预训练数据集，并执行数据过滤与去重 | 
-| [作业 5](coursework/assignment5-alignment/) | 使用 **lm-evaluation-harness**和**evalscope** 对一个 LLM 进行多维度评测（语言理解、常识推理、代码、数学推理）| 
-| [作业 6](coursework/assignment6-evaluation/) | 应用监督微调（SFT）与强化学习（如 GRPO）训练模型解决数学问题；
+> 状态图例说明：✅ 已完成  🔄 更新中	📝 待完善	🚧 筹备中	 ⏸️ 暂缓	
+
+
+## 📝 作业概览
+
+| 作业 | 核心任务 |状态 |
+|------|----------|------|
+| [作业1：手搓大模型](coursework/assignment1-basics/) | 实现 tokenizer、model architecture、optimizer，训练一个极简语言模型 | ✅ |
+| [作业2：系统优化](coursework/assignment2-systems/) | 性能分析与基准测试；用 Triton 实现 FlashAttention-2；构建分布式训练代码 | ✅ |
+| [作业3：扩展定律](coursework/assignment3-scaling/) | 理解 Transformer 各组件功能；拟合 scaling law 预测模型扩展效果 | ✅ |
+| [作业4：数据处理](coursework/assignment4-data/) | 将 Common Crawl 原始数据转换为预训练数据集，执行过滤与去重 | ✅ |
+| [作业5：模型对齐](coursework/assignment5-alignment/) | 应用 SFT 与强化学习（如 GRPO）训练模型解决数学问题 | ✅ |
+| [作业6：模型评估](coursework/assignment6-evaluation/) | 使用 lm-evaluation-harness 和 evalscope 进行多维度评测（语言理解、常识推理、代码、数学推理） | ✅ |
 
 
 ## 🚀 快速开始
 
 ```bash
 # 克隆仓库
-git clone https://github.com/xuhu0115/CS336-Chinese-co-construction.git
+git clone https://github.com/xuhu0115/diy-llm.git
 cd CS336-Chinese-co-construction
 # 安装基础依赖（根据具体作业需求安装）
 ```
 
 ### 学习路径
 
-1. **理论学习**：按照章节顺序阅读 `docs/` 目录下的理论文档
-2. **实践练习**：完成 `coursework/` 目录下的6个作业
-3. **深入理解**：阅读代码实现，理解每个组件的设计思路
+1️⃣ 理论学习 → 按章节顺序阅读 `docs/` 目录下的文档
+2️⃣ 实践练习 → 完成 `coursework/` 目录下的 6 个作业
+3️⃣ 深入理解 → 阅读代码实现，理解每个组件的设计
 
 ### 项目结构
 
@@ -98,28 +126,25 @@ CS336-Chinese-co-construction/
 
 ## 🔗 相关链接
 
-- **仓库地址**：https://github.com/xuhu0115/CS336-Chinese-co-construction
+- **仓库地址**：https://github.com/xuhu0115/diy-llm
 - **原版课程主页**：[Stanford CS336 (Spring 2025)](https://stanford-cs336.github.io/spring2025/)
 - **原版课程项目**：https://github.com/stanford-cs336/spring2025-lectures/tree/main
 
+## ❓ 常见问题
+
+<details>
+<summary><b>Q: 没有 GPU 可以学习吗？</b></summary>
+
+理论部分可以正常学习，作业中的部分内容可以在 CPU 上调试，但完整训练需要 GPU。建议使用云服务平台。
+</details>
+
+<details>
+<summary><b>Q: 与原版 CS336 有什么区别？</b></summary>
+
+我们在保留原版技术深度的基础上，针对中文学习者进行了本土化改造，包括中文讲解、作业实现、更详细的参考内容来源、国产模型案例等。
+</details>
 
 ## 👥 贡献者
-
-我们欢迎所有形式的贡献！无论是文档改进、代码优化、bug修复还是新内容添加，都是对项目的宝贵支持。
-
-### 如何贡献
-
-1. **报告问题**：如果发现文档错误、代码bug或改进建议，欢迎提交 [Issue](https://github.com/xuhu0115/CS336-Chinese-co-construction/issues)
-2. **提交代码**：Fork 本仓库，创建你的特性分支，提交更改后发起 Pull Request
-3. **完善文档**：帮助改进文档、翻译内容或添加示例
-4. **分享经验**：在讨论区分享学习心得和实践经验
-
-### 贡献指南
-
-- 提交代码前请确保代码风格一致
-- 添加新内容时请遵循现有的文档格式
-- 提交PR时请提供清晰的描述和变更说明
-- 欢迎在Issue中讨论大的改动方案
 
 ### 贡献者名单
 
@@ -147,9 +172,27 @@ CS336-Chinese-co-construction/
 
 *注：我们感谢每一位为项目做出贡献的开发者！*
 
+我们欢迎所有形式的贡献！无论是文档改进、代码优化、bug修复还是新内容添加，都是对项目的宝贵支持。
+
+### 如何贡献
+
+1. **报告问题**：如果发现文档错误、代码bug或改进建议，欢迎提交 [Issue](https://github.com/xuhu0115/diy-llm/issues)
+2. **提交代码**：Fork 本仓库，创建你的特性分支，提交更改后发起 Pull Request
+3. **完善文档**：帮助改进文档、翻译内容或添加示例
+4. **分享经验**：在讨论区分享学习心得和实践经验
+
+### 贡献指南
+
+- 提交代码前请确保代码风格一致
+- 添加新内容时请遵循现有的文档格式
+- 提交PR时请提供清晰的描述和变更说明
+- 欢迎在Issue中讨论大的改动方案
+
+
+
 ## 📝 更新日志
 
-项目持续更新中，最新进展请查看 [GitHub Releases](https://github.com/xuhu0115/CS336-Chinese-co-construction/releases) 或提交记录。
+项目持续更新中，最新进展请查看 [GitHub Releases](https://github.com/xuhu0115/diy-llm/releases) 或提交记录。
 
 ## 📄 许可证
 
@@ -168,7 +211,7 @@ CS336-Chinese-co-construction/
 
 如果这个项目对你有帮助，欢迎给个 Star ⭐️！
 
-[![Star History](https://api.star-history.com/svg?repos=xuhu0115/CS336-Chinese-co-construction)](https://star-history.com/#xuhu0115/CS336-Chinese-co-construction&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xuhu0115/diy-llm&type=Date)](https://star-history.com/#xuhu0115/diy-llm&Date)
 
 ---
 
