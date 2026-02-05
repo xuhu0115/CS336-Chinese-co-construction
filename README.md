@@ -24,10 +24,10 @@
 
 | 章节 | 关键内容 | 作业 |
 | --- | --- | --- |
-| [前言](docs/前言.md) | 项目的由来、背景及读者建议	 | - |
+| [前言](docs/前言.md) | 项目的由来、背景及读者建议	| - |
 | [第1章 工具使用](docs/chapter1) | W&B 使用与实验追踪 | - |
 | [第2章 分词器](docs/chapter2/chapter2_分词器.md) | 分词器原理与 BPE 实现 | [作业 1](coursework/assignment1-basics/) |
-| [第3章 PyTorch 与资源核算](docs/chapter3/) | 训练原语、算力/显存估算 | [-](coursework/assignment2-systems/) |
+| [第3章 PyTorch 与资源核算](docs/chapter3/) | 训练原语、算力/显存估算 | - |
 | [第4章 语言模型架构与训练细节](docs/chapter4/chapter4_第四章语言模型架构和训练的技术细节.md) | Transformer 架构与训练要点 | [作业 1](coursework/assignment1-basics/)|
 | [第5章 混合专家模型](docs/chapter5/chapter5_混合专家模型.md) | MoE 原理、路由与工程实践 | - |
 | [第6章 GPU 与相关优化](docs/chapter6/chapter6_第六章GPU和GPU相关的优化.md) | GPU 基础与优化技巧 | [作业 2](coursework/assignment2-systems/) |
@@ -56,7 +56,6 @@
 # 克隆仓库
 git clone https://github.com/xuhu0115/CS336-Chinese-co-construction.git
 cd CS336-Chinese-co-construction
-
 # 安装基础依赖（根据具体作业需求安装）
 ```
 
@@ -169,7 +168,7 @@ CS336-Chinese-co-construction/
 
 如果这个项目对你有帮助，欢迎给个 Star ⭐️！
 
-[![Star History](https://api.star-history.com/svg?repos=datawhalechina/easy-rl)](https://star-history.com/#datawhalechina/easy-rl&Date)
+[![Star History](https://api.star-history.com/svg?repos=xuhu0115/CS336-Chinese-co-construction)](https://star-history.com/#xuhu0115/CS336-Chinese-co-construction&Date)
 
 ---
 
