@@ -11,7 +11,7 @@
 </div>
 
 <div align="center">
-  <p><a href="https://github.com/xuhu0115/diy-llm">📚 在线阅读地址</a></p>
+  <p><a href="https://xuhu0115.github.io/diy-llm/">📚 在线阅读地址</a></p>
   <h3>📚 带你系统性学习大语言模型</h3>
   <p><em>一座为中文学习者量身打造的"LLM炼丹工坊"</em></p>
 </div>
@@ -163,7 +163,7 @@ CS336-Chinese-co-construction/
       </td>
       <td>
          <a href="https://github.com/1iyouzhen"><img width="70" height="70" src="https://github.com/1iyouzhen.png?s=40" alt="pic"></a><br>
-         <a href="https://github.com/1iyouzhen">x</a>
+         <a href="https://github.com/1iyouzhen">黎又榛</a>
          <p>项目负责人<br> Datawhale-鲸英助教 <br>负责内容：第2、5、10、11、13章；作业1、3； </p>
       </td>
     </tr>
