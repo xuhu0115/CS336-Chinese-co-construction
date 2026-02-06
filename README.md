@@ -11,7 +11,7 @@
 </div>
 
 <div align="center">
-  <p><a href="https://github.com/xuhu0115/diy-llm">📚 在线阅读地址</a></p>
+  <p><a href="https://xuhu0115.github.io/diy-llm/">📚 在线阅读地址</a></p>
   <h3>📚 带你系统性学习大语言模型</h3>
   <p><em>一座为中文学习者量身打造的"LLM炼丹工坊"</em></p>
 </div>
