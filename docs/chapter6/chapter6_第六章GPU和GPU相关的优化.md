@@ -663,34 +663,90 @@ GPU中的**慢速内存**（即全局内存/DRAM）实际上极其缓慢。为�
 
 比如上图，加载分块时，第一行还能作为一个完整的突发传输区段载入，但第二行就分散在两个不同的突发传输区段里，需要**两次读取**才能获取，依此类推。仅仅因为**末尾多了一个元素**，就导致内存访问量翻倍——这是突发传输区段与对齐布局发生偏移造成的。本质上，如果分块或**矩阵尺寸不是突发传输区段的整数倍**，就容易出现这种行与突发传输区段不对齐的情况，导致内存访问量**翻倍**。解决方法是通过**填充**（padding）使矩阵尺寸变得规整，让突发传输区段与分块尺寸重新对齐。虽然这些内容非常底层，但要想充分压榨矩阵乘法的性能，就必须考虑这些细节。如果忽略这些，实际运行时就可能遭遇性能陷阱。
 
+---
+
 ## 6.7 Flash Attention
 
-众所周知，Flash Attention 能显著加速注意力机制。论文指出：在未优化的PyTorchTransformer实现中，通过内核融合等技术可获得显著加速。论文运用了两项成熟技术，分块和重计算，来解决精确注意力计算与次二次高带宽内存访问的技术挑战。虽然注意力计算本身无法低于二次复杂度，但通过优化实现了对高带宽全局内存的二次访问。**当内存成为瓶颈时，我们需要让计算承担二次复杂度成本而非内存来承担**。
+<div align="center">
+<img width="1188" height="438" alt="31cfddb1db8291a7a1b870ad48c27ca8" src="https://github.com/user-attachments/assets/947f2883-e686-4b5e-afa5-90f8fa2caa95" />
+   <p>图6.24 FlashAttention原理图</p>
+ </div>
 
-### 6.7.1 FlashAttention核心思想
+Transformer在长序列上计算和显存复杂度为O(N²)，瓶颈主要来自attention的多次`带宽显存（HBM）`读写访问。许多近似注意力方法通过降低理论复杂度来缓解该问题，但由于GPU kernel调度和内存访问不规则，往往无法实现实际运行时加速。FlashAttention则是通过分块策略，在`静态随机存取存储器（SRAM）`内完成 $QK^{T}$ 、online softmax与 $V'$ 计算，避免完整attention matrix从而将IO复杂度显著降低。
 
-论文运用了两项**成熟技术，分块和重计算**，来解决精确注意力计算与次二次高带宽内存访问的技术挑战。虽然注意力计算本身无法低于二次复杂度，但通过优化实现了对高带宽全局内存的二次访问。当内存成为瓶颈时，我们需要让计算承担二次复杂度成本而非内存。
+ 
+>FlashAttention在数学上与标准attention等价（除浮点误差外），属于精确重排而非近似计算。
 
-<img src="images/6-24-注意力计算.png" width="800" alt="6-24-注意力计算.png">
 
-注意力机制的核心是三个不同的矩阵乘法运算。有一个 $K$ 、 $Q$ 和 $V$ 矩阵，中间夹着一个 $softmax$ 函数。**矩阵乘法可以通过分块计算来完成**。注意力机制关键就在于 $softmax$ 操作，这是难点。一旦处理好 $softmax$ ，之前提到的所有**矩阵乘法技巧**就都能派上用场。
+<div align="center">
+<img width="1080" height="370" alt="6e33f8876e8290755ea5032ff62608ce" src="https://github.com/user-attachments/assets/bf311647-581d-4608-b357-1dd43d4d62d3" />
+   <p>图6.25 左图：前向传播+反向传播的运行时间；右图：注意力内存使用情况。</p>
+ </div>
 
-<img src="images/6-25-FlashAttention的图一.png" width="800" alt="6-25-FlashAttention的图一.png">
+根据图 6.25的分析可以发现，尽管不同Attention实现方法的运行时间相差不大，但FlashAttention的显存占用明显更低，约为其他实现的一半。因此，在长序列场景下FlashAttention具有更好的可扩展性和更高的资源利用效率。
 
-上面是**FlashAttention论文中的图1**，这是一个简单的分块矩阵乘法， $K$ 矩阵和 $Q$ 矩阵被分割成小块，这些小块被复制到 $SRAM$ 中进行乘法运算，然后进行累加,它们被发送到 $HBM$ 中执行 $softmax$ 运算，最后再与 $V$ 矩阵相乘。
 
-softmax的问题在于它是一个**全局操作**。注意力机制中的 $softmax$ 是**逐行运算**的，**必须汇总整行数据才能计算 $softmax$ 的归一化项**，这样就与我们的分块运算的思想相冲突，我们希望**尽可能在每个分块内完成更多计算**。这里的关键就是使用所谓的**online softmax**。
+### 6.7.1 FlashAttention计算原理
+
+其中Q、K、V均 $∈R^{Nxd}$ （N行是token表示结构，d列是token属性特征表示），而 $i∈N，j∈d$ 以下表示底层支持因果建模计算过程（带有mask）：
+
+```text
+# 初始化
+m_i = -inf
+l_i = 0
+O_i = 0
+for each Q block i:
+    load Q_i
+    m_i = -inf      
+    l_i = 0         
+    O_i = 0         
+
+    for each K,V block j:
+        if causal and j > i:
+            continue
+
+        load K_j, V_j
+        S_{ij} = Q_i @ K_j^T      # (B_r, B_c)
+
+        if causal and i == j:
+            apply mask to S_{ij}
+
+        update m_i, l_i, O_i(online softmax)
+
+    write O_i to HBM
+```
+
+
+>为什么FlashAttention要分块（tile/block）?
+>
+>在GPU中，Attention的计算主要瓶颈在**缓存（SRAM）容量和计算带宽**。直接计算 $Q K^T$ 会生成一个 $N \times N$ 的中间矩阵，当 $N$ 较大时，无法一次性放入高速缓存，并且同时频繁访问HBM会加大缓存压力；FlashAttention的**核心思想**是：通过分块计算，减少对全局内存的访问，提高缓存利用率，并保证计算效率和数值稳定性。具体做法是在SRAM中处理可容纳的小块，同时进行softmax累加，从而大幅降低全局内存访问压力。
+
+
+具体举例：
+
+- 假设Q、K的形状为 $1024 \times 512$ 。
+- 将Q按行分成8块，每块大小 $128 \times 512$ ，将 $K^T$ 按列分成8块，每块大小 $512 \times 128$ 。
+- 每次只在SRAM内计算得到一个 $128 \times 128$ 的子矩阵并累加结果，直到完成整个 $Q K^T$ 和 $Q K^T V$ 的计算。
 
 ### 6.7.2 online softmax
 
-<img src="images/6-26-两种softmax.png" width="800" alt="6-26-两种softmax.png">
+online softmax与标准softmax在数学上完全等价，二者都需要进行全局归一化。不同之处在于，`online softmax`采用流式（streaming）计算方式，在遍历过程中动态维护当前最大值和归一化因子（指数累加和），从而无需存储完整的中间结果，这种流式特性使其能够与分块计算自然结合。在FlashAttention中，Attention分数按tile逐块计算，并在块间持续更新最大值和归一化因子实现跨块的全局归一化。
 
-**online softmax**对于一串数值流，传统的 $softmax$ 会获取所有 $x_1$ 到 $x_n$的值进行指数运算、求和再相除。 而 $online softmax$ 则不同（这个算法来自Mikailov和Gimelshein2018年的研究），通过递推关系可以维护当前遇到的最大值和修正项。**具体维护当前迭代中 $x_1$ 到 $x_j$ 的最大值，以及修正项。当最大值更新时，修正项会相应调整，然后加入新的计算项**。这样最终计算出所需的归一化系数和标准化输出y(i)。
+**online softmax在6.7.1 FlashAttention计算作用过程详细分析：**
+```text
+m_{ij} = rowmax(S_{ij})
+m_new = max(m_i, m_{ij})
 
-这种方法的关键优势在于**可以实时处理数据流，不需要预先获取全部 $x_1$ 到 $x_n$ 的值**。这使得我们能够分块计算softmax，**在每个分块内运行这个算法，计算该分块的部分softmax结果，只需记录必要的中间变量即可**。这样我们永远不需要实例化完整的n平方矩阵来计算softmax。一旦掌握这个核心思想，将其整合起来就能实现flashattention的前向传播。
+l_i = exp(m_i - m_new) * l_i 
+  + sum(exp(S_ij - m_new), axis=1)
 
-### 6.7.3 完整流程
+O_i = exp(m_i - m_new) * O_i 
+  + exp(S_{ij} - m_new) @ V_j
 
-<img src="images/6-27-flashAttention的向前传播.png" width="800" alt="6-27-flashAttention的向前传播.png">
+m_i = m_new
+O_i = O_i / l_i
+```
 
-Flash Attention 在进行 $KQ$ 矩阵乘法运算时这个过程会被**分块处理**，这些数据块会进行相乘。然后维护一个指数求和值的运行记录，然后逐步更新并修正最大值项来计算 $softmax$ ，这样就能得到完整的 $softmax$ 输出。分块处理、合并访问和重新计算这些技术如何共同构成了FlashAttention。
+*因此online softmax成为`FlashAttention`在不显式构造整个注意力矩阵情况下完成精确Attention计算的关键组件。*
+
+## 6.8 Page Attention
