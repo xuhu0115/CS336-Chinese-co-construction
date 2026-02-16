@@ -672,7 +672,7 @@ GPU中的**慢速内存**（即全局内存/DRAM）实际上极其缓慢。为�
    <p>图6.24 FlashAttention原理图</p>
  </div>
 
-Transformer在长序列上计算和显存复杂度为O(N²)，瓶颈主要来自attention的多次`带宽显存（HBM）`读写访问。许多近似注意力方法通过降低理论复杂度来缓解该问题，但由于GPU kernel调度和内存访问不规则，往往无法实现实际运行时加速。FlashAttention则是通过分块策略，在`静态随机存取存储器（SRAM）`内完成 $QK^{T}$ 、online softmax与 $V'$ 计算，避免完整attention matrix从而将IO复杂度显著降低。
+Transformer在长序列上计算和显存复杂度为O(N²)，瓶颈主要来自attention的多次`带宽显存（HBM）`读写访问。许多近似注意力方法通过降低理论复杂度来缓解该问题，但由于GPU kernel调度和内存访问不规则，往往无法实现实际运行时加速。FlashAttention则是**从计算层面通过分块策略**，在`静态随机存取存储器（SRAM）`内完成 $QK^{T}$ 、online softmax与 $V'$ 计算，避免完整attention matrix从而将IO复杂度显著降低。
 
  
 >FlashAttention在数学上与标准attention等价（除浮点误差外），属于精确重排而非近似计算。
@@ -749,4 +749,23 @@ O_i = O_i / l_i
 
 *因此online softmax成为`FlashAttention`在不显式构造整个注意力矩阵情况下完成精确Attention计算的关键组件。*
 
-## 6.8 Page Attention
+---
+
+## 6.8 PageAttention
+
+<div align="center">
+<img width="1362" height="276" alt="c8efd766f5ca2a2bee935828649b9b7c" src="https://github.com/user-attachments/assets/3ba4f70d-6c25-4c31-b4a2-5de6da8570cd" />
+   <p>图6.26 传统KV Cache分布</p>
+ </div>
+ 
+**在传统的KV Cache管理方式中，通常为每个请求序列预先分配一段逻辑上连续的缓存空间，用于存储其历史生成的Key/Value状态**。然而，由于实际生成长度难以精确预测，这种静态预分配策略会带来显存利用率问题。当预留空间大于实际生成长度时，会产生`内部碎片`（internal fragmentation），即已分配但未被使用的显存空间；同时，由于不同请求的生命周期不一致，释放时间存在差异，显存中可能形成多个零散的空闲块。尽管总空闲容量充足，但由于无法提供足够大的连续缓存块来满足新序列的分配需求，从而产生`外部碎片`（external fragmentation）。
+
+<div align="center">
+<img width="800" height="480" alt="8f656ff9ffcef6e1ab631f81cd99cf21" src="https://github.com/user-attachments/assets/61ad87a3-7544-477e-84cc-2c385589f2e0" />
+   <p>图6.27 显存占用分析</p>
+ </div>
+
+上述碎片问题会显著降低GPU高带宽显存（HBM）的整体利用效率。为**从系统层面缓解这问刚才提到的问题**，根据操作系统分页机制（paging），PageAttention将KV Cache拆分为固定大小的页面（pages），并通过页表进行间接地址映射，使逻辑连续的KV存储不再依赖物理连续内存，从而有效减少碎片并提升显存利用率。
+
+### 6.8.1 PageAttention原理分析
+
