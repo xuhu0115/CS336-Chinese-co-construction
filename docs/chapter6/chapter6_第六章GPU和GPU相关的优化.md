@@ -825,31 +825,20 @@ for each block:
 
 PagedAttention将显存管理从**以请求为单位的静态圈地转变为以Token为单位的动态确权。它通过物理地址的非连续映射，彻底解决了标准AR中因预留最大长度而导致的严重内部碎片**问题。在300tokens的请求中（划分的每个Page = 16 tokens）：
 
-- **所需Page数量：**
+- **所需Page数量：** $300 / 16 = 18.75$ ，18.75向上取整需要19个Page。
 
-  $$
-  300 / 16 = 18.75
-  $$
-
-18.75向上取整需要19个Page。
-
-- **实际分配空间：**
+- **实际分配空间：** $19 \times 16 = 304 tokens$
   
-  $$
-  19 \times 16 = 304 tokens
-  $$
-  
-- **实际浪费：**
-  
-  $$
-  304 - 300 = 4tokens
-  $$
+- **实际浪费：** $304 - 300 = 4 tokens$
   
 - **对比标准AR (预留2048)：** 浪费了2048-300 = 1748 tokens。
 
-vllm能将浪费从1700缩减至个位数，从而让同一块显存能承载的并发请求量（Throughput）发生了量级的跃迁。借助一个到外面用餐例子更好理解vllm相较于传统AR的改善意义：
-- 标准 AR（按次收费）： 不管你胃口大还是小，进门就得按“满汉全席2048道菜”的标准交钱占位。如果你只吃了300道菜就走了，剩下的1748道菜别人也不能吃，只能倒掉（显存被强行占用）。
-- PagedAttention（按需取餐）： 你吃多少，我就给你上多少。每16个token是一盘菜。当你吃完一盘（Page），服务员再给你上下一盘。剩下的空桌子随时可以给别的食客（其他并发请求）坐。
+vLLM将显存浪费从1700+ token降至个位数，使同一块GPU的并发能力（Throughput）实现数量级提升。传统AR为每个请求按最大长度（如2048）预分配连续KV Cache，即便实际只生成300 token，剩余空间也无法复用，造成严重内部碎片；而vLLM通过PagedAttention采用分页式按需分配，只为已生成的token分配page，未使用空间可立即回收，浪费仅限于最后一个未填满的page。借助用餐类比：
+
+- **标准 AR（按次收费）**：不管吃多少，都必须按“2048 道满汉全席”占位；吃300道就走，剩下1748道只能倒掉（显存被强占）。
+- **PagedAttention（按需取餐）**：*每16个token是一盘菜*，吃完一盘再会再拿一盘，空桌可随时给他人使用（显存可动态复用）。
+
+>因此，传统AR浪费规模为 $O(max_seq_len)$ ，而PagedAttention浪费仅为 $O(page_size)$ ，从而显著提升显存利用率与并发能力。
 
 总结刚刚的分析，PageAttention工作原理可以概括为：
 ```
@@ -863,8 +852,30 @@ vllm能将浪费从1700缩减至个位数，从而让同一块显存能承载的
 
 ### 6.8.2 FlashAttention VS PageAttention
 
-尽管 PageAttention 与 FlashAttention 在表面上都旨在提升大模型推理性能，但二者的优化维度本质上不同。FlashAttention主要针对Attention计算过程中的访存瓶颈，**通过分块计算与在线softmax技术减少HBM与SRAM之间的数据往返**，从而降低内存带宽压力与计算延迟其核心目标是优化计算路径与访存效率。
+尽管Paged Attention与FlashAttention在表面上都旨在提升大模型推理性能，但二者的优化维度本质上不同：
 
-相比之下，PageAttention（由vLLM提出）并不改变Attention的数学计算过程，而是从系统级显存管理角度入手，将KV Cache组织为分页结构，通过逻辑页表映射解耦逻辑顺序与物理顺序，从而缓解显存碎片问题，提高显存利用率与并发吞吐能力。
+| 维度              | FlashAttention      | Paged Attention  |
+| --------------- | ------------------- | ---------------- |
+| 优化目标            | 单次 forward 的 IO 复杂度 | 整个生成生命周期的内存管理    |
+| 时间尺度            | micro-level（算子级）    | macro-level（系统级） |
+| 影响对象            | attention kernel    | KV Cache生命周期    |
+| 是否影响训练          | 是                 | 基本仅推理          |
+| 依赖 decoder-only | **不依赖**            | **强依赖**            |
 
-因此，FlashAttention主要解决“算得更快”的问题，而PageAttention主要解决“存得更高效”的问题。二者分别从计算优化与存储优化两个维度切入，在vLLM等推理框架中通常可以协同使用，以同时提升单请求延迟与整体吞吐量。
+
+- **FlashAttention主要针对Attention计算过程中的访存瓶颈（memory IO bottleneck）**，通过分块计算（tiling）与在线Softmax（log-sum-exp streaming）技术，避免显式构建完整的 $QK^T$ 中间矩阵，从而显著减少HBM与SRAM之间的数据往返次数降低内存带宽压力与访问延迟。其核心目标是优化 算子级的计算路径与访存效率。
+
+- **PagedAttention并不改变Attention的数学计算公式**，而是从系统级显存管理角度入手，将KV Cache组织为固定大小的物理块（page），并通过逻辑block table实现逻辑顺序与物理顺序的解耦，解决模型吞吐问题。这种分页结构能够有效缓解显存碎片问题，支持动态批处理与长上下文推理，从而提高显存利用率与并发吞吐能力。
+
+因此，FlashAttention主要解决“算得更快”的问题，而Paged Attention主要解决“存得更高效”的问题。在如vLLM等推理框架中，二者通常协同使用，以同时优化单请求延迟与整体吞吐量。
+
+>协同使用两者的过程中，PagedAttention是否可能影响FlashAttention的kernel设计？
+>
+>**在数学层面，PagedAttention不改变FlashAttention的注意力计算公式**。**然而在工程实现中**，PagedAttention通过间接寻址引入KV cache的非连续物理布局，这可能破坏FlashAttention对连续内存访问（图6.24可以得出）、memory coalescing的假设。因此，在联合使用时，FlashAttention kernel需要——Page为最小streaming计算单元；或者确保 $block_size ≈ tile_size$ ，以维持共享内存利用率和访存效率。
+
+
+# 参考资料
+
+- [FlashAttention原理](https://arxiv.org/pdf/2205.14135)
+- [PageAttention原理](https://arxiv.org/pdf/2309.06180)
+  
