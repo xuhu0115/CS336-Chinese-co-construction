@@ -663,34 +663,219 @@ GPU中的**慢速内存**（即全局内存/DRAM）实际上极其缓慢。为�
 
 比如上图，加载分块时，第一行还能作为一个完整的突发传输区段载入，但第二行就分散在两个不同的突发传输区段里，需要**两次读取**才能获取，依此类推。仅仅因为**末尾多了一个元素**，就导致内存访问量翻倍——这是突发传输区段与对齐布局发生偏移造成的。本质上，如果分块或**矩阵尺寸不是突发传输区段的整数倍**，就容易出现这种行与突发传输区段不对齐的情况，导致内存访问量**翻倍**。解决方法是通过**填充**（padding）使矩阵尺寸变得规整，让突发传输区段与分块尺寸重新对齐。虽然这些内容非常底层，但要想充分压榨矩阵乘法的性能，就必须考虑这些细节。如果忽略这些，实际运行时就可能遭遇性能陷阱。
 
+---
+
 ## 6.7 Flash Attention
 
-众所周知，Flash Attention 能显著加速注意力机制。论文指出：在未优化的PyTorchTransformer实现中，通过内核融合等技术可获得显著加速。论文运用了两项成熟技术，分块和重计算，来解决精确注意力计算与次二次高带宽内存访问的技术挑战。虽然注意力计算本身无法低于二次复杂度，但通过优化实现了对高带宽全局内存的二次访问。**当内存成为瓶颈时，我们需要让计算承担二次复杂度成本而非内存来承担**。
+<div align="center">
+<img width="1188" height="438" alt="31cfddb1db8291a7a1b870ad48c27ca8" src="https://github.com/user-attachments/assets/947f2883-e686-4b5e-afa5-90f8fa2caa95" />
+   <p>图6.24 FlashAttention原理图</p>
+ </div>
 
-### 6.7.1 FlashAttention核心思想
+Transformer在长序列上计算和显存复杂度为O(N²)，瓶颈主要来自attention的多次`带宽显存（HBM）`读写访问。许多近似注意力方法通过降低理论复杂度来缓解该问题，但由于GPU kernel调度和内存访问不规则，往往无法实现实际运行时加速。FlashAttention则是**从计算层面通过分块策略**，在`静态随机存取存储器（SRAM）`内完成 $QK^{T}$ 、online softmax与 $V'$ 计算，避免完整attention matrix从而将IO复杂度显著降低。
 
-论文运用了两项**成熟技术，分块和重计算**，来解决精确注意力计算与次二次高带宽内存访问的技术挑战。虽然注意力计算本身无法低于二次复杂度，但通过优化实现了对高带宽全局内存的二次访问。当内存成为瓶颈时，我们需要让计算承担二次复杂度成本而非内存。
+ 
+>FlashAttention在数学上与标准attention等价（除浮点误差外），属于精确重排而非近似计算。
 
-<img src="images/6-24-注意力计算.png" width="800" alt="6-24-注意力计算.png">
 
-注意力机制的核心是三个不同的矩阵乘法运算。有一个 $K$ 、 $Q$ 和 $V$ 矩阵，中间夹着一个 $softmax$ 函数。**矩阵乘法可以通过分块计算来完成**。注意力机制关键就在于 $softmax$ 操作，这是难点。一旦处理好 $softmax$ ，之前提到的所有**矩阵乘法技巧**就都能派上用场。
+<div align="center">
+<img width="1080" height="370" alt="6e33f8876e8290755ea5032ff62608ce" src="https://github.com/user-attachments/assets/bf311647-581d-4608-b357-1dd43d4d62d3" />
+   <p>图6.25 左图：前向传播+反向传播的运行时间；右图：注意力内存使用情况。</p>
+ </div>
 
-<img src="images/6-25-FlashAttention的图一.png" width="800" alt="6-25-FlashAttention的图一.png">
+根据图 6.25的分析可以发现，尽管不同Attention实现方法的运行时间相差不大，但FlashAttention的显存占用明显更低，约为其他实现的一半。因此，在长序列场景下FlashAttention具有更好的可扩展性和更高的资源利用效率。
 
-上面是**FlashAttention论文中的图1**，这是一个简单的分块矩阵乘法， $K$ 矩阵和 $Q$ 矩阵被分割成小块，这些小块被复制到 $SRAM$ 中进行乘法运算，然后进行累加,它们被发送到 $HBM$ 中执行 $softmax$ 运算，最后再与 $V$ 矩阵相乘。
 
-softmax的问题在于它是一个**全局操作**。注意力机制中的 $softmax$ 是**逐行运算**的，**必须汇总整行数据才能计算 $softmax$ 的归一化项**，这样就与我们的分块运算的思想相冲突，我们希望**尽可能在每个分块内完成更多计算**。这里的关键就是使用所谓的**online softmax**。
+### 6.7.1 FlashAttention计算原理
+
+其中Q、K、V均 $∈R^{Nxd}$ （N行是token表示结构，d列是token属性特征表示），而 $i∈N，j∈d$ 以下表示底层支持因果建模计算过程（带有mask）：
+
+```text
+# 初始化
+m_i = -inf
+l_i = 0
+O_i = 0
+for each Q block i:
+    load Q_i
+    m_i = -inf      
+    l_i = 0         
+    O_i = 0         
+
+    for each K,V block j:
+        if causal and j > i:
+            continue
+
+        load K_j, V_j
+        S_{ij} = Q_i @ K_j^T      # (B_r, B_c)
+
+        if causal and i == j:
+            apply mask to S_{ij}
+
+        update m_i, l_i, O_i(online softmax)
+
+    write O_i to HBM
+```
+
+
+>为什么FlashAttention要分块（tile/block）?
+>
+>在GPU中，Attention的计算主要瓶颈在**缓存（SRAM）容量和计算带宽**。直接计算 $Q K^T$ 会生成一个 $N \times N$ 的中间矩阵，当 $N$ 较大时，无法一次性放入高速缓存，并且同时频繁访问HBM会加大缓存压力；FlashAttention的**核心思想**是：通过分块计算，减少对全局内存的访问，提高缓存利用率，并保证计算效率和数值稳定性。具体做法是在SRAM中处理可容纳的小块，同时进行softmax累加，从而大幅降低全局内存访问压力。
+
+
+具体举例：
+
+- 假设Q、K的形状为 $1024 \times 512$ 。
+- 将Q按行分成8块，每块大小 $128 \times 512$ ，将 $K^T$ 按列分成8块，每块大小 $512 \times 128$ 。
+- 每次只在SRAM内计算得到一个 $128 \times 128$ 的子矩阵并累加结果，直到完成整个 $Q K^T$ 和 $Q K^T V$ 的计算。
 
 ### 6.7.2 online softmax
 
-<img src="images/6-26-两种softmax.png" width="800" alt="6-26-两种softmax.png">
+online softmax与标准softmax在数学上完全等价，二者都需要进行全局归一化。不同之处在于，`online softmax`采用流式（streaming）计算方式，在遍历过程中动态维护当前最大值和归一化因子（指数累加和），从而无需存储完整的中间结果，这种流式特性使其能够与分块计算自然结合。在FlashAttention中，Attention分数按tile逐块计算，并在块间持续更新最大值和归一化因子实现跨块的全局归一化。
 
-**online softmax**对于一串数值流，传统的 $softmax$ 会获取所有 $x_1$ 到 $x_n$的值进行指数运算、求和再相除。 而 $online softmax$ 则不同（这个算法来自Mikailov和Gimelshein2018年的研究），通过递推关系可以维护当前遇到的最大值和修正项。**具体维护当前迭代中 $x_1$ 到 $x_j$ 的最大值，以及修正项。当最大值更新时，修正项会相应调整，然后加入新的计算项**。这样最终计算出所需的归一化系数和标准化输出y(i)。
+**online softmax在6.7.1 FlashAttention计算作用过程详细分析：**
+```text
+m_{ij} = rowmax(S_{ij})
+m_new = max(m_i, m_{ij})
 
-这种方法的关键优势在于**可以实时处理数据流，不需要预先获取全部 $x_1$ 到 $x_n$ 的值**。这使得我们能够分块计算softmax，**在每个分块内运行这个算法，计算该分块的部分softmax结果，只需记录必要的中间变量即可**。这样我们永远不需要实例化完整的n平方矩阵来计算softmax。一旦掌握这个核心思想，将其整合起来就能实现flashattention的前向传播。
+l_i = exp(m_i - m_new) * l_i 
+  + sum(exp(S_ij - m_new), axis=1)
 
-### 6.7.3 完整流程
+O_i = exp(m_i - m_new) * O_i 
+  + exp(S_{ij} - m_new) @ V_j
 
-<img src="images/6-27-flashAttention的向前传播.png" width="800" alt="6-27-flashAttention的向前传播.png">
+m_i = m_new
+O_i = O_i / l_i
+```
 
-Flash Attention 在进行 $KQ$ 矩阵乘法运算时这个过程会被**分块处理**，这些数据块会进行相乘。然后维护一个指数求和值的运行记录，然后逐步更新并修正最大值项来计算 $softmax$ ，这样就能得到完整的 $softmax$ 输出。分块处理、合并访问和重新计算这些技术如何共同构成了FlashAttention。
+*因此online softmax成为`FlashAttention`在不显式构造整个注意力矩阵情况下完成精确Attention计算的关键组件。*
+
+---
+
+## 6.8 PageAttention
+
+<div align="center">
+<img width="1362" height="276" alt="c8efd766f5ca2a2bee935828649b9b7c" src="https://github.com/user-attachments/assets/3ba4f70d-6c25-4c31-b4a2-5de6da8570cd" />
+   <p>图6.26 传统KV Cache分布</p>
+ </div>
+ 
+**在传统的KV Cache管理方式中，通常为每个请求序列预先分配一段逻辑上连续的缓存空间，用于存储其历史生成的Key/Value状态**。然而，由于实际生成长度难以精确预测，这种静态预分配策略会带来显存利用率问题。当预留空间大于实际生成长度时，会产生`内部碎片`（internal fragmentation），即已分配但未被使用的显存空间；同时，由于不同请求的生命周期不一致，释放时间存在差异，显存中可能形成多个零散的空闲块，这个时候尽管总空闲容量充足，但由于无法提供足够大的连续缓存块来满足新序列的分配需求，从而产生`外部碎片`（external fragmentation）。
+
+<div align="center">
+<img width="800" height="480" alt="8f656ff9ffcef6e1ab631f81cd99cf21" src="https://github.com/user-attachments/assets/61ad87a3-7544-477e-84cc-2c385589f2e0" />
+   <p>图6.27 显存占用分析</p>
+ </div>
+
+上述碎片问题会显著降低GPU高带宽显存（HBM）的整体利用效率。为**从系统层面缓解这问刚才提到的问题**，根据操作系统分页机制（paging），PageAttention将KV Cache拆分为固定大小的页面（pages），并通过页表进行间接地址映射，使逻辑连续的KV存储不再依赖物理连续内存，从而有效减少碎片并提升显存利用率。
+
+### 6.8.1 PageAttention原理分析
+
+在标准AR推理过程中，**每个新生成的token都会产生对应的K/V并按时间顺序追加至KV cache（KV单调增加）**。逻辑顺序严格对应时间顺序，而物理存储顺序则取决于具体实现策略。为了**保证高效的GPU访问与CUDA kernel的访存模式（比如memory coalescing）**，传统实现通常将KV cache组织为连续内存张量（可以提高模型吞吐量），并依据预设的最大序列长度上界进行显存预分配。**由于不同请求的实际生成长度存在显著差异，且GPU显存分配器难以支持低代价的动态扩容与内存重排**，这种基于最大长度的连续预分配策略容易产生内部碎片与外部碎片。
+
+**举例分析标准AR的连续物理内存问题，假设每次前提前请求预留内存可以最多容纳2048个token（最大限制）相关KV Cache的连续物理空间：**
+
+>这里必须要用连续物理空间是因为按照相应时间顺序读取得到符合AR建模逻辑的响应请求。
+
+$$
+[ K_1 | K_2 | K_3 | ... | K_2048 ]
+$$
+
+
+但是如果有很多不同长度请求：
+
+```
+请求A：128 token
+请求B：1024 token
+请求C：300 token
+```
+
+会出现两种碎片：
+- **内部碎片** 提前预留了2048大小的整块连续物理存储空间（逻辑顺序 = 物理顺序），对于请求A、B、C均有剩余 → 剩下的是浪费（请求C中浪费1700+）；
+- **外部碎片** 显存中存在很多小块空闲空间，**可是没有一整块连续区域可用**，这在GPU上尤其严重，这样以来就无法使用这些空闲碎片化空间。
+
+
+**vLLM开发的PageAttention解决上面例子中出现的问题——把“静态连续存储”变成“动态分页管理”：**
+
+先把KV Cache切成固定大小的块（Page），比如：
+
+```
+每个Page = 16 tokens
+```
+
+那么在PageAttention中会通过一个页表（Block Table），把逻辑连续的token相关KV Cache转化为物理地址上非必须连续物理存储块从而最大化适用存储空间的碎片，比如在3个Page中存储管理：
+```
+逻辑token:
+[1~16]  [17~32]  [33~48]
+
+          | Block Table（上下一一对应）
+         👇
+物理地址:
+Block7   Block2   Block19
+```
+
+>PageAttention中为什么这样就不需要连续物理空间？
+>
+>因为Attention计算时，可以按照物理结构根据页表转换中block读取K/V，这样以来即使物理地址不连续但是读取逻辑顺序仍然正确，所以流程变成：
+```
+for each block:
+    查页表
+    找到对应物理block
+    读取
+```
+*这个分配内存过程是根据响应请求生成token多少，动态分配KV Cache存储。*
+
+PagedAttention将显存管理从**以请求为单位的静态圈地转变为以Token为单位的动态确权。它通过物理地址的非连续映射，彻底解决了标准AR中因预留最大长度而导致的严重内部碎片**问题。在300tokens的请求中（划分的每个Page = 16 tokens）：
+
+- **所需Page数量：** $300 / 16 = 18.75$ ，18.75向上取整需要19个Page。
+
+- **实际分配空间：** $19 \times 16 = 304 tokens$
+  
+- **实际浪费：** $304 - 300 = 4 tokens$
+  
+- **对比标准AR (预留2048)：** 浪费了2048-300 = 1748 tokens。
+
+vLLM将显存浪费从1700+ token降至个位数，使同一块GPU的并发能力（Throughput）实现数量级提升。传统AR为每个请求按最大长度（如2048）预分配连续KV Cache，即便实际只生成300 token，剩余空间也无法复用，造成严重内部碎片；而vLLM通过PagedAttention采用分页式按需分配，只为已生成的token分配page，未使用空间可立即回收，浪费仅限于最后一个未填满的page。借助用餐类比：
+
+- **标准 AR（按次收费）**：不管吃多少，都必须按“2048 道满汉全席”占位；吃300道就走，剩下1748道只能倒掉（显存被强占）。
+- **PagedAttention（按需取餐）**：*每16个token是一盘菜*，吃完一盘再会再拿一盘，空桌可随时给他人使用（显存可动态复用）。
+
+>因此，传统AR浪费规模为 $O(max_seq_len)$ ，而PagedAttention浪费仅为 $O(page_size)$ ，从而显著提升显存利用率与并发能力。
+
+总结刚刚的分析，PageAttention工作原理可以概括为：
+```
+虚拟地址 -> 页表 -> 物理地址
+```
+在VLLM源码中其原理为：
+```
+请求ID + Token偏移量 -> 逻辑块索引 -> Block Table检索 -> 物理内存基址 -> 偏移读取
+```
+
+
+### 6.8.2 FlashAttention VS PageAttention
+
+尽管Paged Attention与FlashAttention在表面上都旨在提升大模型推理性能，但二者的优化维度本质上不同：
+
+| 维度              | FlashAttention      | Paged Attention  |
+| --------------- | ------------------- | ---------------- |
+| 优化目标            | 单次 forward 的 IO 复杂度 | 整个生成生命周期的内存管理    |
+| 时间尺度            | micro-level（算子级）    | macro-level（系统级） |
+| 影响对象            | attention kernel    | KV Cache生命周期    |
+| 是否影响训练          | 是                 | 基本仅推理          |
+| 依赖 decoder-only | **不依赖**            | **强依赖**            |
+
+
+- **FlashAttention主要针对Attention计算过程中的访存瓶颈（memory IO bottleneck）**，通过分块计算（tiling）与在线Softmax（log-sum-exp streaming）技术，避免显式构建完整的 $QK^T$ 中间矩阵，从而显著减少HBM与SRAM之间的数据往返次数降低内存带宽压力与访问延迟。其核心目标是优化 算子级的计算路径与访存效率。
+
+- **PagedAttention并不改变Attention的数学计算公式**，而是从系统级显存管理角度入手，将KV Cache组织为固定大小的物理块（page），并通过逻辑block table实现逻辑顺序与物理顺序的解耦，解决模型吞吐问题。这种分页结构能够有效缓解显存碎片问题，支持动态批处理与长上下文推理，从而提高显存利用率与并发吞吐能力。
+
+因此，FlashAttention主要解决“算得更快”的问题，而Paged Attention主要解决“存得更高效”的问题。在如vLLM等推理框架中，二者通常协同使用，以同时优化单请求延迟与整体吞吐量。
+
+>协同使用两者的过程中，PagedAttention是否可能影响FlashAttention的kernel设计？
+>
+>**在数学层面，PagedAttention不改变FlashAttention的注意力计算公式**。**然而在工程实现中**，PagedAttention通过间接寻址引入KV cache的非连续物理布局，这可能破坏FlashAttention对连续内存访问（图6.24可以得出）、memory coalescing的假设。因此，在联合使用时，FlashAttention kernel需要——Page为最小streaming计算单元；或者确保 $block_size ≈ tile_size$ ，以维持共享内存利用率和访存效率。
+
+
+# 参考资料
+
+- [FlashAttention原理](https://arxiv.org/pdf/2205.14135)
+- [PageAttention原理](https://arxiv.org/pdf/2309.06180)
+  
