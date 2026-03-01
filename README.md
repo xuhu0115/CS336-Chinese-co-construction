@@ -158,8 +158,8 @@ CS336-Chinese-co-construction/
       </td>
       <td>
          <a href="https://github.com/kangkang-Adam"><img width="70" height="70" src="https://github.com/kangkang-Adam.png?s=40" alt="pic"></a><br>
-         <a href="https://github.com/kangkang-Adam">x</a> 
-        <p>项目负责人<br> x<br> x <br> 负责内容：第4、6、7、8、13章；作业2、4</p>
+         <a href="https://github.com/kangkang-Adam">李盛康</a> 
+        <p>项目负责人<br> Datawhale 成员<br> 西安邮电大学 <br> 负责内容：第4、6、7、8、13章；作业2、4</p>
       </td>
       <td>
          <a href="https://github.com/1iyouzhen"><img width="70" height="70" src="https://github.com/1iyouzhen.png?s=40" alt="pic"></a><br>
