@@ -1134,6 +1134,6 @@ if __name__ == "__main__":
 
 ## 参考资料
 - [hugging face介绍四种分词器算法](https://huggingface.co/learn/llm-course/en/chapter6/1)
-- [BEP算法](https://arxiv.org/pdf/1508.07909)
+- [BPE算法](https://arxiv.org/pdf/1508.07909)
 - [CS336的Lecture1课程资料](https://stanford-cs336.github.io/spring2025-lectures/?trace=var%2Ftraces%2Flecture_01.json&source=lecture_01.py&line=238)
 
