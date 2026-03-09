@@ -184,7 +184,7 @@ $$
 下图展示了强化学习从人类反馈（RLHF）中，使用近端策略优化（PPO）算法训练语言模型的整体流程。
 
 <div align="center">
-   <img src="images/14-0-ppo算法流程图.png" />
+   <img src="/images/14-0-ppo算法流程图.png" />
    <p>图14.0 ppo算法流程图</p>
 </div>
 
