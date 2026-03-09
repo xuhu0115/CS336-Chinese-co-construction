@@ -37,26 +37,26 @@ $$6 \times (70 \times 10^9) \times (15 \times 10^{12}) \approx 6.3 \times 10^{24
 查阅 [NVIDIA H100 的白皮书](https://www.nvidia.com/en-sg/data-center/h100/)，其 FP16/BF16 的峰值算力约为 **1979 TFLOPS**（每秒万亿次浮点运算）。
 
 <div align="center">
-   <img src="images/3-1-H100数值细览.png" />
+   <img src="./chapter3/images/3-1-H100数值细览.png" />
    <p>图3.1 H100 数值细览</p>
  </div>
 
 但是要注意，这个值是 NVIDIA H100 GPU 在使用 FP16 或 BF16 数据类型、且启用结构化稀疏（Structured Sparsity）时可达到的理论最大计算吞吐量。对于我们训练普通的稠密模型（如标准的 LLaMA-1到LLaMA-3系列、Qwen3-0.6B/1.7B/4B/8B/14B/32B等），理论峰值减半，约 990 TFLOPS。
 
 <!-- <div align="center">
-   <img width="800" height="500"alt="1" src="images/3-2-H100性能明细.png" />
+   <img width="800" height="500"alt="1" src="./chapter3/images/3-2-H100性能明细.png" />
    <p>图3.2 H100 性能明细</p>
  </div> -->
 
 <div align="center">
-   <img src="images/3-2-H100性能明细.png" />
+   <img src="./chapter3/images/3-2-H100性能明细.png" />
    <p>图3.2 H100 性能明细</p>
  </div>
 
 > 结构化稀疏，是一种模型压缩的方法，通常是对稠密模型按照50%的稀疏度进行剪枝（稀疏形式为n:m，即m个连续权重里必须剪掉n个，类型有 2:4、4:8、8:16)。还有一种灵活度更高的非结构化剪枝方法，可以按照百分比进行剪枝，但通常相对于结构化剪枝性能更差。
 
 <div align="center">
-   <img src="images/3-3-剪枝方法介绍.png" />
+   <img src="./chapter3/images/3-3-剪枝方法介绍.png" />
    <p>图3.3 剪枝方法介绍</p>
  </div>
 
@@ -212,7 +212,7 @@ assert y.size() == torch.Size([16, 2])
 在实际应用中，我们很少只处理单个数据样本。为了提高效率，我们会将多个样本打包成一个“批次”（batch），并对整个批次同时进行计算。下图展示了批量处理的操作：
 
 <div align="center">
-   <img src="images/3-4-矩阵乘法.png" />
+   <img src="./chapter3/images/3-4-矩阵乘法.png" />
    <p>图3.3 剪枝方法介绍</p>
  </div>
 
@@ -357,7 +357,7 @@ x = rearrange(x, "... heads hidden2 -> ... (heads hidden2)")
 1. Float32 (FP32 / 单精度浮点数)
 
 <div align="center">
-   <img src="images/3-5-fp32.png" />
+   <img src="./chapter3/images/3-5-fp32.png" />
    <p>图3.5 单精度浮点数</p>
  </div>
 
@@ -372,7 +372,7 @@ x = rearrange(x, "... heads hidden2 -> ... (heads hidden2)")
 2. Float16 (FP16 / 半精度浮点数)
 
 <div align="center">
-   <img src="images/3-6-fp16.png" />
+   <img src="./chapter3/images/3-6-fp16.png" />
    <p>图3.6 半精度浮点数</p>
  </div>
 
@@ -387,7 +387,7 @@ x = rearrange(x, "... heads hidden2 -> ... (heads hidden2)")
 3. BFloat16 (BF16 / Brain Floating Point)
 
 <div align="center">
-   <img src="images/3-7-bf16.png" />
+   <img src="./chapter3/images/3-7-bf16.png" />
    <p>图3.7 BF16</p>
  </div>
 
@@ -405,7 +405,7 @@ x = rearrange(x, "... heads hidden2 -> ... (heads hidden2)")
 4. FP8 (8位浮点数)
 
 <div align="center">
-   <img src="images/3-8-fp8.png" />
+   <img src="./chapter3/images/3-8-fp8.png" />
    <p>图3.8 8位浮点数</p>
  </div>
 
@@ -439,7 +439,7 @@ x = torch.tensor([
 张量在底层可以是按行存储也可以是按列存储。Numpy 和 Pytorch 都采用了**按行存储**的方式，任何维度的张量在底层存储都占据着内存中连续的空间，那么问题来了，我们如何访问到我们想要的位置的数据？
 
 <div align="center">
-   <img src="images/3-9-tensor-memory.png" />
+   <img src="./chapter3/images/3-9-tensor-memory.png" />
    <p>图3.9 张量内存</p>
  </div>
 
@@ -485,7 +485,7 @@ assert x.device == torch.device("cpu")
 但是，为了利用 GPU 的大规模并行性计加速计算，我们需要将它们移至 GPU 内存中。
 
 <div align="center">
-   <img src="images/3-10-cpu与gpu之间的通信.png" />
+   <img src="./chapter3/images/3-10-cpu与gpu之间的通信.png" />
    <p>图3.10 CPU与GPU之间的通信</p>
  </div>
 
@@ -734,9 +734,9 @@ w1.grad[j, k] = sum_i x[i, j] * h1.grad[i, k]
 
 将这个过程[可视化](https://medium.com/@dzmitrybahdanau/the-flops-calculus-of-language-model-training-3b19c1f025e4)：
 
-![](images/3-4-back-grad.gif)
+![](./chapter3/images/3-4-back-grad.gif)
 <div align="center">
-   <img src="images/3-11-反向梯度传播.png" />
+   <img src="./chapter3/images/3-11-反向梯度传播.png" />
    <p>图3.11 反向梯度传播</p>
  </div>
 

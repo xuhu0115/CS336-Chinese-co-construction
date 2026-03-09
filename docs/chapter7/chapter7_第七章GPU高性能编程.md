@@ -151,7 +151,7 @@ def benchmark(description: str, run: Callable, num_warmups: int = 1, num_trials:
 
 ```
 
-<img src="images/7-1-矩阵运算时间.png" width="800" alt="7-1-矩阵运算时间.png">
+<img src="./chapter7/images/7-1-矩阵运算时间.png" width="800" alt="7-1-矩阵运算时间.png">
 
 正如预期，随着矩阵尺寸增大，运行时间呈现**超线性增长**。不过在最小尺寸（如1024和2048）时，耗时基本没有增长，因为执行矩阵乘法存在**固定开销**，需要**将数据从CPU传输到GPU，启动内核也有开销，所以并非从零开始就一直保持超线性增长**。但当矩阵足够大时，确实观察到了预期的**缩放规律**。
 
@@ -209,7 +209,7 @@ def benchmarking():
 
 现在让我们尝试对**MLP**进行基准测试。具体操作是：将MLP扩展至256维，设置四层网络，批处理大小为256，执行两个训练步。测得耗时6.2秒（mlp_base)。
 
-<img src="images/7-2-缩放各种参数的规律.png" width="800" alt="7-2-缩放各种参数的规律">
+<img src="./chapter7/images/7-2-缩放各种参数的规律.png" width="800" alt="7-2-缩放各种参数的规律">
 
 接着可以进行**基础扩展测试**：将训练步数从2逐步增加到5，分别进行基准测试。与矩阵乘法不同，当增加MLP的前向传播和反向传播次数时，运行时间应该呈线性增长，实际数据也印证了这一点，每次MLP执行约5秒，总体运行时间基本符合n×5秒的规律。同样地，当网络层数从2、3、4增加到5层时，运行时间也随之递增。这次仍然呈现线性增长趋势：单层运行约5秒（略少于5秒），总体耗时约为层数的四倍。再次验证了**线性缩放规律。**
 
@@ -267,7 +267,7 @@ def profiling():
     sleep_profile = profile("sleep", sleep_function) 
 ```
 
-<img src="images/7-3-sheep的性能分析.png" width="800" alt="7-3-加法的性能分析">
+<img src="./chapter7/images/7-3-sheep的性能分析.png" width="800" alt="7-3-加法的性能分析">
 
 观察运行结果会发现100%的时间都消耗在名为CUDA设备同步（`cudaDeviceSynchronize`）的操作上，因为实际上**没有GPU计算任务**。我们现在就像是在分析空操作。
 
@@ -288,7 +288,7 @@ def profiling():
     add_profile = profile("add", run_operation2(dim=2048, operation=add_function))
 
 ```
-<img src="images/7-4-add的性能分析.png" width="800" alt="7-4-add的性能分析">
+<img src="./chapter7/images/7-4-add的性能分析.png" width="800" alt="7-4-add的性能分析">
 
 现在开始分析并调用分析器，会得到类似上面这个图片中的输出结果。这就是分析器返回的内容。
 
@@ -314,7 +314,7 @@ def profiling():
 
 矩阵乘法也是类似情况。这里我对A乘以B进行矩阵乘法运算，再次使用2048维矩阵并进行性能分析。此时看到 `aten:matmul` 调用，这说明底层接口执行矩阵乘法的过程。然后就会调用 `Cutlass` ,这是英伟达的高性能矩阵乘法CUDA库，随后分派到特定的Cutlass内核，其中包含分块尺寸参数。这实际上指向特定的分块（瓦片）尺寸和线程块数量等参数化配置，正是这些在执行矩阵乘法。同样在底部看到两个熟悉项：内核启动（ `cuLaunchKernel` ）和CUDA设备同步（ `cudaDeviceSynchronize` ）。可以再次观察到CPU时间与CUDA时间的分配情况。**由于矩阵乘法比向量加法更耗时，CUDA部分占用时间显著增加**。
 
-<img src="images/7-5-矩阵乘法的性能分析.png" width="800" alt="7-5-矩阵乘法的性能分析">
+<img src="./chapter7/images/7-5-矩阵乘法的性能分析.png" width="800" alt="7-5-矩阵乘法的性能分析">
 
 **这里还有一个矩阵乘法示例**
 
@@ -334,7 +334,7 @@ def profiling():
 
 在这里乘以128维矩阵。128乘以128，比上面这个小得多。
 
-<img src="images/7-6-矩阵乘法的性能分析2.png" width="800" alt="7-6-矩阵乘法的性能分析2">
+<img src="./chapter7/images/7-6-矩阵乘法的性能分析2.png" width="800" alt="7-6-矩阵乘法的性能分析2">
 
 你会看到现在它实际上直接执行这个不同的命令，从 `sm80_xmma_gemm_f32f32_f32f32_f32_nn_n_tilesize32x32x8_stage3_warpsize1x2x1_ff` 这一行可以看到和上面的矩阵乘法的不同，它执行的是 `xmma_gemm` 。GEMM是一种矩阵乘法类型。后面跟着f32，即float32。从该内核的命名可以看出实际发生的情况，即这是一种瓦片（分块）的矩阵乘法。它没有经过 `Cutlass` ，而是直接执行这个特定命令。
 
@@ -362,7 +362,7 @@ def profiling():
 
 这个叫`torch.cdist`的操作，它的作用是**计算两组矩阵之间向量的成对欧几里得距离**。这将是我需要的A和B之间的大型距离矩阵计算，这就是cdist。这是一个更复杂的操作，要计算欧几里得距离需要**计算点积，还需要计算平方根**。
 
-<img src="images/7-7-cdist的性能分析.png" width="800" alt="7-7-cdist的性能分析">
+<img src="./chapter7/images/7-7-cdist的性能分析.png" width="800" alt="7-7-cdist的性能分析">
 
 当我们计算cdist时就会看到上面这张图片，这是cdist的分析输出。我们看到这个Torch Python 命令在C接口中的map映射到一些较低级的cdist。第一行的 `aten::cdist` ，然后映射到 `aten::euclidean_dist` 。接着这会分解成一整套操作：比如 `aten::matmul、aten::pow` 等等，因为这些是计算所有向量间欧几里得距离所需的基本原语。
 
@@ -387,7 +387,7 @@ def profiling():
 
 gelu是一个非线性激活函数。如果大家还记得我们第一章的内容，就会知道它是高斯误差线性单元。它由tanh和指数函数的乘积构成。我们将进行各种运算操作：首先执行A与B的加法运算，然后调用GELU函数，模拟我们在多层感知机中可能存在的线性加非线性结构。
 
-<img src="images/7-8-gelu的性能分析.png" width="800" alt="7-8-gelu的性能分析">
+<img src="./chapter7/images/7-8-gelu的性能分析.png" width="800" alt="7-8-gelu的性能分析">
 
 我们再次观察到基本相同的运算映射，比如 `aten::add` 对应A+B运算，接着看到其CUDA等效实现，最后这里还有一个完全用CUDA实现的GELU函数，这部分消耗了约33%的计算资源，比例很合理。
 
@@ -406,7 +406,7 @@ def profiling():
 
 随后我们看到softmax运算。由于这些运算模式会重复出现，将不再逐一展开详细说明。
 
-<img src="images/7-9-softmax的性能分析.png" width="800" alt="7-9-softmax的性能分析">
+<img src="./chapter7/images/7-9-softmax的性能分析.png" width="800" alt="7-9-softmax的性能分析">
 
 但需要重点强调的精妙之处在于：像softmax和GELU这些核心基础算子都有专门编写的内核实现。这意味着GPU并非在执行基础原语操作，而是通过**融合算子**一次性完成所有计算，完全避免了CPU与GPU之间的来回数据传输（上一章中说到的算子融合操作，这章后面还会讲到）。
 
@@ -420,17 +420,17 @@ def profiling():
 
 现在我们可以启用真正的专业级分析工具——NVIDIA **Nsight Systems**。这是NVIDIA提供的GPU**行为与性能详细分析方案，能让我们精确观察MLP运行时的实际状况**。
 
-<img src="images/7-10-NsightSystems.png" width="800" alt="7-10-NsightSystems">
+<img src="./chapter7/images/7-10-NsightSystems.png" width="800" alt="7-10-NsightSystems">
 
 本质上，当我们观察分析结果时，会看到几个不同的组成部分，我们在左上角的栏目可以看到CUDA硬件部分（CUDA HW），往下看到线程部分（Threads）。上半部分这个CUDA区域展示的是GPU正在执行的工作。而在线程部分，我们看到的是CPU正在处理的任务。
 
-<img src="images/7-11-NsightSystems代码.png" width="800" alt="7-11-NsightSystems代码">
+<img src="./chapter7/images/7-11-NsightSystems代码.png" width="800" alt="7-11-NsightSystems代码">
 
 我们可以用NVTX工具对代码进行了标注，就像上面这一幅图一样，这样当性能分析器运行时，它就能识别出这段代码属于名为的 `define_model` 代码块（`with nvtx.range("define_model"):model = MLP(dim, num_layers).to(get_device())`）。
 
 在调用分析器之前，我们应该已经在代码中添加了所有这些注释。
 
-<img src="images/7-12-NsightSystems2.png" width="800" alt="7-12-NsightSystems2">
+<img src="./chapter7/images/7-12-NsightSystems2.png" width="800" alt="7-12-NsightSystems2">
 
 加载库文件之类的操作非常耗时，光是初始化所有内容就花费了7.5秒。然后在GPU上程序运行约7.5秒后才真正开始构建模型。
 
@@ -484,7 +484,7 @@ def manual_gelu(x: torch.Tensor):
     assert torch.allclose(y1, y2)
 ```
 
-<img src="images/7-13-两个gelu的计算结果.png" width="800" alt="7-13-两个gelu的计算结果">
+<img src="./chapter7/images/7-13-两个gelu的计算结果.png" width="800" alt="7-13-两个gelu的计算结果">
 
 我们可以运行代码，可以看到上面这幅图显示两个实现的**计算结果相同**，如果可以你们可以在随机高斯分布上系统性地验证这一点。
 
@@ -502,7 +502,7 @@ pytorch_time = benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pyt
 
 ```
 
-<img src="images/7-14-两个gelu的时间.png" width="800" alt="7-14-两个gelu的时间">
+<img src="./chapter7/images/7-14-两个gelu的时间.png" width="800" alt="7-14-两个gelu的时间">
 
 从上图看到手动实现处理超大数据量需要8.1毫秒，而PyTorch原生实现仅需1.1毫秒。
 
@@ -515,11 +515,11 @@ pytorch_time = benchmark("pytorch_gelu", run_operation1(dim=16384, operation=pyt
     pytorch_gelu_profile = profile("pytorch_gelu", run_operation1(dim=16384, operation=pytorch_gelu))
 ```
 
-<img src="images/7-15-手动gelu的性能分析.png" width="800" alt="7-15-手动gelu的性能分析">
+<img src="./chapter7/images/7-15-手动gelu的性能分析.png" width="800" alt="7-15-手动gelu的性能分析">
 
 现在让我们剖析底层运行机制。手工版GeLU会执行大量运算，虽然进行了向量化处理，但这里启动了多个CUDA内核。**注意右侧显示该CUDA内核被调用了三次，因为存在大量浮点乘法运算，还包括加法运算和双曲正切计算，其中每个操作都可能产生延迟（大部分是通信的开销），最终导致相当大的时间开销**。
 
-<img src="images/7-16-pytorch的gelu的性能分析.png" width="800" alt="7-16-pytorch的gelu的性能分析">
+<img src="./chapter7/images/7-16-pytorch的gelu的性能分析.png" width="800" alt="7-16-pytorch的gelu的性能分析">
 
 现在观察PyTorch版GELU的实现，**仅一次CUDA内核启动就处理了整个任务**。这种方式非常非常快，**因为它只启动了一个CUDA内核**。
 
@@ -660,7 +660,7 @@ if cuda_gelu is not None:
     cuda_gelu_profile = profile("cuda_gelu", run_operation1(dim=16384, operation=cuda_gelu))
 ```
 
-<img src="images/7-17-cuda的gelu的性能分析.png" width="800" alt="7-17-cuda的gelu的性能分析">
+<img src="./chapter7/images/7-17-cuda的gelu的性能分析.png" width="800" alt="7-17-cuda的gelu的性能分析">
 
 这里记录了运行PyTorch版本所需的时间，和上次测试结果类似，大约是1.1毫秒。而手动实现的时间记得是8.1毫秒。
 
@@ -668,7 +668,7 @@ if cuda_gelu is not None:
 
 **接下来进行性能分析。**
 
-<img src="images/7-18-cuda的gelu的性能分析2.png" width="800" alt="7-18-cuda的gelu的性能分析2">
+<img src="./chapter7/images/7-18-cuda的gelu的性能分析2.png" width="800" alt="7-18-cuda的gelu的性能分析2">
 
 这里显示调用了 `gelu_kernel` 内核，这就是被发送到GPU执行的代码。然后调用了 `aten::empty_like` 进行初始化，接着是 ` aten::empty_strided `，随后是CUDA内核启动和设备同步操作。
 
@@ -773,11 +773,11 @@ offsets = block_start + tl.arange(0, BLOCK_SIZE)
     triton_gelu_profile = profile("triton_gelu", run_operation1(dim=16384, operation=triton_gelu))
 ```
 
-<img src="images/7-19-triton的gelu的性能分析.png" width="800" alt="7-19-triton的gelu的性能分析">
+<img src="./chapter7/images/7-19-triton的gelu的性能分析.png" width="800" alt="7-19-triton的gelu的性能分析">
 
 手动gelu耗时8.1毫秒，PyTorch版本1.1毫秒，CUDA版本1.84毫秒，Triton版本1.848秒。虽然速度没有提升，但编写Triton代码要容易得多。我们用Python编写，考虑块操作，还能进行向量化加法。如果处理更复杂的任务，Triton会帮你处理很多内存操作，这确实很不错。
 
-<img src="images/7-20-triton的gelu的性能分析2.png" width="800" alt="7-20-triton的gelu的性能分析">
+<img src="./chapter7/images/7-20-triton的gelu的性能分析2.png" width="800" alt="7-20-triton的gelu的性能分析">
 
 性能分析再次显示，单个内核启动消耗了所有GPU时间，这正是我们想要的。
 
@@ -793,11 +793,11 @@ def pytorch_compilation():
 
 编写CUDA内核很好，但或许我们并不需要这么做，因为使用工具`torch.compil`就能实现自动优化，我们做的就是将立方和指数运算塞进单个CUDA内核（`compiled_gelu = torch.compile(manual_gelu)`）。`torch.compile`它**能够接收未优化的PyTorch代码并生成优化版本。它会尝试自动进行内核融合等优化。这个编译后的gelu在输出结果上与之前等效**。它实质上是利用PyTorch现有的JIT编译器自动优化代码。
 
-<img src="images/7-21-compile的的时间消耗.png" width="800" alt="7-21-compile的的时间消耗">
+<img src="./chapter7/images/7-21-compile的的时间消耗.png" width="800" alt="7-21-compile的的时间消耗">
 
 现在来看运行时间，手动8.1毫秒，PyTorch 1.1毫秒，CUDA 1.8毫秒，而torch.compile仅需 1.47毫秒。
 
-<img src="images/7-22-compil的gelu的性能分析.png" width="800" alt="7-22-compil的gelu的性能分析">
+<img src="./chapter7/images/7-22-compil的gelu的性能分析.png" width="800" alt="7-22-compil的gelu的性能分析">
 
 关键结论是：现代JIT编译器非常强大，能在无需人工干预的情况下实现操作融合等优化。比我们做的稍更优化。因此它的性能甚至比我们的代码还要稍好一些。所以`torch.compile`确实十分优秀。
 

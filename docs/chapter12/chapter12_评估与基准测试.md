@@ -12,7 +12,7 @@
 这是最直观、最普遍的评估形式。各大模型发布时，都会在一系列标准化基准上报告其得分。例如：
 
 <div align="center">
-   <img src="images/12-1-Deepseek-R1的基准性能.png" />
+   <img src="./chapter12/images/12-1-Deepseek-R1的基准性能.png" />
    <p>图12.1 Deepseek-R1的基准性能</p>
  </div>
 
